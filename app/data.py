@@ -38,6 +38,7 @@ def load_enriched_df() -> pd.DataFrame:
                 "text": r["text"], "lang": r["lang"], "rating": r.get("rating"),
                 "categories_mentioned": r.get("categories_mentioned", []),
                 "behaviour_signal": r["behaviour_signal"], "barrier_type": r["barrier_type"],
+                "theme_id": r.get("theme_id", "unclassified"),
                 "family_stage": seg.get("family_stage", "unknown"),
                 "city_tier": seg.get("city_tier", "unknown"),
                 "price_sensitivity": seg.get("price_sensitivity", "unknown"),

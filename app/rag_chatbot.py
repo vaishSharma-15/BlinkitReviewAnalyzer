@@ -16,15 +16,17 @@ sys.path.insert(0, str(ROOT))  # so `from src....` / `from app....` work under `
 
 from app import tab_analytics, tab_copilot, tab_overview, tab_themes  # noqa: E402
 from app.theme import inject_theme  # noqa: E402
+from app.ui import inject_ui  # noqa: E402
 
 st.set_page_config(page_title="Discovery Engine", page_icon="🔍", layout="wide")
 inject_theme()
+inject_ui()
 
 PAGES = {
     "Overview": (" 📊", tab_overview),
     "Analytics": (" 📈", tab_analytics),
     "Theme Intelligence": (" 🧭", tab_themes),
-    "Discovery Copilot": (" 💬", tab_copilot),
+    "Chat Terminal": (" 💬", tab_copilot),
 }
 
 if "active_page" not in st.session_state:
@@ -63,9 +65,6 @@ with st.sidebar:
         st.caption(f"Evidence indexed: {manifest['n_evidence']}")
         st.caption(f"Themes indexed: {manifest['n_themes']}")
 
-if st.session_state.active_page != "Overview":
-    st.markdown("## Discovery Engine")
-    st.caption("Why Blinkit users stay inside familiar shopping categories — evidence-backed, not model priors.")
-    st.markdown(f"### {st.session_state.active_page}")
-
+st.markdown('<div class="ui-wrap">', unsafe_allow_html=True)
 PAGES[st.session_state.active_page][1].render()
+st.markdown("</div>", unsafe_allow_html=True)

@@ -1,14 +1,16 @@
-"""Theme Intelligence tab: the ranked theme table from Phase 06 synthesize, filterable
-by research question / source / confidence — mirrors the Stitch "Theme Intelligence"
-card-list + drill-down layout."""
+"""Theme Intelligence tab: 'Discovery Themes & User Voice' — a light Blinkit-palette
+theme board modelled on the spotify-discovery-intel reference. Three summary chips (most
+mentioned / most negative / most positive), a research-question coverage strip, then a
+2-column grid of theme cards, each with an average-sentiment gradient bar, mention stats,
+and a collapsible set of real user quotes.
+"""
 import json
 from pathlib import Path
 
 import streamlit as st
 
+from app import ui
 from app.data import load_themes_df
-from app.theme import badge, card_end, card_start, confidence_badge_kind, quote_block
-from src.schemas import RESEARCH_QUESTIONS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,65 +18,112 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def render():
     themes_df = load_themes_df()
     if themes_df.empty:
-        st.warning("No themes yet — run `python -m src.cluster` and `python -m src.synthesize` first.")
+        st.warning("No themes yet — run `python -m src.synthesize` first.")
         return
 
-    card_start("RESEARCH QUESTION COVERAGE")
+    themes = themes_df.sort_values("rank_score", ascending=False).to_dict("records")
+    total_corpus = sum(t["size"] for t in themes) or 1
+
+    ui.flush(ui.hero("🧭", "Theme Intelligence", "Discovery Themes & User Voice",
+                     "Every category barrier, classified from an LLM's reading of the reviews — ranked by "
+                     "mentions, with the real user quotes behind each one.",
+                     pill=f"● {ui.fmt(total_corpus)} reviews"))
+
+    parts = [_summary_chips(themes), _rq_strip(), '<div class="ui-label">All Themes</div>', '<div class="ui-g2">']
+    for i, t in enumerate(themes):
+        parts.append(_theme_card(t, i, total_corpus))
+    parts.append("</div>")
+    ui.flush(parts)
+
+
+def _sent100(avg):
+    return round((avg + 1) / 2 * 100)
+
+
+def _summary_chips(themes):
+    most_mentioned = max(themes, key=lambda t: t["size"])
+    most_neg = min(themes, key=lambda t: t["avg_sentiment"])
+    most_pos = max(themes, key=lambda t: t["avg_sentiment"])
+    total = sum(t["size"] for t in themes) or 1
+
+    def chip(eyebrow, right, name, sub, border, bg, ecol):
+        return (f'<div class="ui-summary" style="border-color:{border};background:{bg};">'
+                f'<div class="ui-summary-eyebrow" style="color:{ecol};"><span>{eyebrow}</span><span>{right}</span></div>'
+                f'<div class="ui-summary-title">{ui.esc(name)}</div>'
+                f'<div class="ui-summary-sub">{sub}</div></div>')
+
+    chips = [
+        chip("🔥 Most Mentioned", f"{ui.fmt(most_mentioned['size'])} reviews",
+             ui.THEME_META.get(most_mentioned["theme_id"], (most_mentioned["name"], ""))[0],
+             f"{most_mentioned['size']/total:.1%} of themed feedback", ui.YELLOW, ui.YELLOW_SOFT, ui.YELLOW_DK),
+        chip("😞 Most Negative", f"{_sent100(most_neg['avg_sentiment'])}/100",
+             ui.THEME_META.get(most_neg["theme_id"], (most_neg["name"], ""))[0],
+             "The most painful theme", ui.NEG, "#fef2f4", ui.NEG),
+        chip("😊 Most Positive", f"{_sent100(most_pos['avg_sentiment'])}/100",
+             ui.THEME_META.get(most_pos["theme_id"], (most_pos["name"], ""))[0],
+             "What users are happiest about", ui.POS, "#f0fdf4", ui.POS),
+    ]
+    return f'<div class="ui-g3 ui-row">{"".join(chips)}</div>'
+
+
+def _rq_strip():
     rq_file = REPO_ROOT / "data" / "themes" / "research_questions.json"
-    if rq_file.exists():
-        rq_data = json.loads(rq_file.read_text())
-        rq_rows = [
-            {"question_id": qid, "question": info["question"], "status": info["status"], "n_themes": len(info["theme_ids"])}
-            for qid, info in rq_data.items()
-        ]
-        st.dataframe(rq_rows, use_container_width=True, hide_index=True)
-    card_end()
+    if not rq_file.exists():
+        return ""
+    rq = json.loads(rq_file.read_text())
+    answered = sum(1 for v in rq.values() if v["status"] == "answered")
+    cells = []
+    for qid, info in rq.items():
+        ok = info["status"] == "answered"
+        color = ui.POS if ok else ui.NEG
+        cells.append(f'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;">'
+                     f'<span class="ui-dot" style="background:{color};"></span>'
+                     f'<b style="color:{ui.TXT};font-size:12px;">{qid}</b>'
+                     f'<span class="ui-muted" style="font-size:12px;">{ui.esc(info["question"])}</span>'
+                     f'<span style="margin-left:auto;color:{color};font-size:11px;font-weight:700;">'
+                     f'{"✓ " + str(len(info["theme_ids"])) + " themes" if ok else "unanswered"}</span></div>')
+    return (f'<div class="ui-card ui-row"><div class="ui-card-title">Research Question Coverage</div>'
+            f'<div class="ui-card-sub">{answered}/{len(rq)} of the eight research questions are answered by at least one theme.</div>'
+            f'{"".join(cells)}</div>')
 
-    st.markdown("#### Ranked themes")
-    col1, col2, col3 = st.columns(3)
-    all_rqs = sorted(RESEARCH_QUESTIONS.keys())
-    rq_filter = col1.multiselect("Filter by research question", all_rqs)
-    all_sources = sorted({s for sources in themes_df["sources"] for s in sources.keys()})
-    source_filter = col2.multiselect("Filter by source", all_sources)
-    confidence_filter = col3.multiselect("Filter by confidence", sorted(themes_df["confidence"].unique()))
 
-    filtered = themes_df.copy()
-    if rq_filter:
-        filtered = filtered[filtered["research_questions"].apply(lambda rqs: any(q in rqs for q in rq_filter))]
-    if source_filter:
-        filtered = filtered[filtered["sources"].apply(lambda s: any(src in s for src in source_filter))]
-    if confidence_filter:
-        filtered = filtered[filtered["confidence"].isin(confidence_filter)]
+def _theme_card(t, i, total_corpus):
+    name = ui.THEME_META.get(t["theme_id"], (t["name"], ""))[0]
+    desc = ui.THEME_META.get(t["theme_id"], ("", "LLM-classified theme."))[1]
+    color = ui.CAT[i % len(ui.CAT)]
+    s100 = _sent100(t["avg_sentiment"])
+    scol = ui.sentiment_color(t["avg_sentiment"])
+    slabel = ui.sentiment_label(t["avg_sentiment"])
+    prevalence = t["size"] / total_corpus
 
-    filtered = filtered.sort_values("rank_score", ascending=False)
-
-    for _, theme in filtered.iterrows():
-        card_start()
-        top_row = st.columns([3, 1])
-        top_row[0].markdown(f"### {theme['name']}")
-        top_row[1].markdown(
-            f"<div style='text-align:right;font-size:24px;font-weight:800;'>{theme['prevalence']:.0%}"
-            f"<div style='font-size:11px;font-weight:600;color:#5f5e5e;text-transform:uppercase;'>prevalence</div></div>",
-            unsafe_allow_html=True,
+    quotes = ""
+    reps = t.get("representative_quotes", [])
+    if reps:
+        qhtml = "".join(
+            f'<div class="ui-quote">"{ui.esc(q["text"][:200])}"'
+            f'<div class="ui-quote-src">— {ui.SOURCE_META.get(q.get("source",""), (q.get("source",""), ""))[0]}</div></div>'
+            for q in reps
         )
+        quotes = (f'<details class="ui-quotes"><summary>💬 Show {len(reps)} user quotes</summary>{qhtml}</details>')
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Size", f"{theme['size']} items")
-        c2.metric("Severity", f"{theme['severity']:.2f}")
-        c3.metric("Strategic relevance", f"{theme['strategic_relevance']:.2f}")
-        c4.markdown(f"**Confidence**<br>{badge(theme['confidence'].upper(), confidence_badge_kind(theme['confidence']))}", unsafe_allow_html=True)
+    conf = t.get("confidence", "")
+    conf_badge = ""
+    if conf:
+        ccol = ui.POS if conf == "high" else ui.NEU
+        conf_badge = f'<span class="ui-badge" style="color:{ccol};border-color:{ccol}55;background:{ccol}12;margin-left:8px;">{conf.replace("_"," ")}</span>'
 
-        st.markdown(f"**Research questions:** {', '.join(theme['research_questions']) or 'none mapped'}")
-        st.markdown(
-            f"**Dominant category:** {theme['dominant_category']} · "
-            f"**behaviour:** {theme['dominant_behaviour_signal']} · "
-            f"**barrier:** {theme['dominant_barrier_type']}"
-        )
-        st.markdown(f"**Sources:** {', '.join(f'{s}×{c}' for s, c in theme['sources'].items())}")
-        if theme["confidence"] == "single_source":
-            st.warning("Single-source theme — not yet cross-source triangulated.")
-
-        with st.expander("Representative quotes"):
-            for q in theme["representative_quotes"]:
-                st.markdown(quote_block(q["text"][:200], q["source"]), unsafe_allow_html=True)
-        card_end()
+    return (f'<div class="ui-card">'
+            f'<div class="ui-theme-head"><div class="ui-theme-name">'
+            f'<span class="ui-dot" style="background:{color};width:12px;height:12px;"></span>{ui.esc(name)}</div>'
+            f'<span class="ui-badge" style="color:{scol};border-color:{scol}55;background:{scol}12;">{slabel}</span></div>'
+            f'<div class="ui-theme-desc">{ui.esc(desc)}</div>'
+            f'<div style="display:flex;justify-content:space-between;color:{ui.FAINT};font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">'
+            f'<span>Average Sentiment</span><span style="color:{scol};">{s100}/100</span></div>'
+            f'<div class="ui-sentbar-track"><span class="ui-sentbar-mark" style="left:{s100}%;"></span></div>'
+            f'<div class="ui-theme-stats">'
+            f'<div class="ui-theme-stat"><div class="ui-theme-stat-v">{ui.fmt(t["size"])}</div><div class="ui-theme-stat-l">Mentions</div></div>'
+            f'<div class="ui-theme-stat"><div class="ui-theme-stat-v">{prevalence:.1%}</div><div class="ui-theme-stat-l">Of Reviews</div></div>'
+            f'</div>'
+            f'<div style="margin-top:12px;color:{ui.MUTED};font-size:12px;">'
+            f'Research questions: <b style="color:{ui.TXT};">{", ".join(t.get("research_questions", [])) or "none"}</b>{conf_badge}</div>'
+            f'{quotes}</div>')

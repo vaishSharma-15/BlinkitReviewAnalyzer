@@ -1,86 +1,74 @@
-"""Discovery Copilot tab: chat interface with structured answer cards (Executive
-Summary / Theme Breakdown / Affected User Segments / Product Recommendations /
-Supporting Evidence), styled after the Stitch "Chat Terminal" screen.
+"""Chat Terminal tab: a light Blinkit-palette RAG chat modelled on the
+spotify-discovery-intel copilot screen — a centered 'How can I help…' hero with
+suggested-question chips and a bottom input, then structured, evidence-cited answer cards.
 
 Product Recommendations is included at the user's explicit request, overriding the
 project spec's default insight-only constraint (docs/ProblemStatement.md) — see
-app/rag_engine.py's generate_structured_answer for how that field is generated and why
-it's the one field allowed to be judgment rather than pure evidence extraction.
+app/rag_engine.py's generate_structured_answer for how that field is generated.
 """
 import streamlit as st
 
+from app import ui
 from app.rag_engine import generate_structured_answer, get_db, retrieve_evidence, retrieve_themes
-from app.theme import card_end, card_start, quote_block, source_badge
 
 SUGGESTED_QUESTIONS = [
     "Why do users repeatedly buy from the same categories?",
     "What prevents users from exploring new categories?",
     "How do users discover products on the platform today?",
     "What role do habits and reorder behaviour play?",
-    "What frustrations emerge repeatedly?",
+    "Which user segments are most frustrated?",
     "What unmet needs emerge consistently across sources?",
 ]
 
 
-def _sentiment_label(score: float) -> str:
-    return "Positive" if score > 0.2 else ("Negative" if score < -0.2 else "Neutral")
+def _render_answer_card(msg):
+    query, structured, evidence = msg["query"], msg["structured"], msg["evidence"]
+    parts = [f'<div class="ui-card ui-row"><div class="ui-card-title">✨ {ui.esc(query)}</div>',
+             f'<div style="color:{ui.FAINT};font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:14px 0 6px;">Executive Summary</div>',
+             f'<div style="color:{ui.TXT};font-size:14px;line-height:1.6;">{ui.esc(structured["executive_summary"])}</div>']
 
-
-def _theme_tag(e: dict) -> str:
-    return e["barrier_type"] if e.get("barrier_type", "none") != "none" else e.get("behaviour_signal", "")
-
-
-def _render_answer_card(query: str, structured: dict, evidence: list, matched_themes: list):
-    card_start()
-    st.markdown(f"### ✨ {query}")
-
-    st.markdown("**📄 EXECUTIVE SUMMARY**")
-    st.write(structured["executive_summary"])
-
-    if structured["theme_breakdown"] or structured["affected_segments"]:
-        c1, c2 = st.columns(2)
-        if structured["theme_breakdown"]:
-            with c1:
-                st.markdown("**THEME BREAKDOWN**")
-                for theme in structured["theme_breakdown"]:
-                    st.markdown(f"- {theme}")
-        if structured["affected_segments"]:
-            with c2:
-                st.markdown("**AFFECTED USER SEGMENTS**")
-                for seg in structured["affected_segments"]:
-                    st.markdown(f"- {seg}")
+    if structured.get("theme_breakdown") or structured.get("affected_segments"):
+        parts.append('<div class="ui-g2" style="margin-top:16px;">')
+        for title, items in [("Theme Breakdown", structured.get("theme_breakdown")),
+                             ("Affected Segments", structured.get("affected_segments"))]:
+            if items:
+                li = "".join(f'<li style="margin-bottom:6px;">{ui.esc(x)}</li>' for x in items)
+                parts.append(f'<div><div style="color:{ui.FAINT};font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">{title}</div>'
+                             f'<ul style="margin:0;padding-left:18px;color:{ui.MUTED};font-size:13px;">{li}</ul></div>')
+        parts.append("</div>")
 
     if structured.get("product_recommendations"):
-        st.markdown("**PRODUCT RECOMMENDATIONS**")
-        for i, rec in enumerate(structured["product_recommendations"], start=1):
-            c1, c2 = st.columns([1, 20])
-            c1.markdown(
-                f"<div style='width:24px;height:24px;border-radius:50%;background:#F9D507;"
-                f"color:#191c1e;font-weight:700;font-size:12px;display:flex;align-items:center;"
-                f"justify-content:center;'>{i}</div>",
-                unsafe_allow_html=True,
-            )
-            c2.write(rec)
+        recs = "".join(
+            f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">'
+            f'<div style="width:22px;height:22px;border-radius:50%;background:{ui.YELLOW};color:#191c1e;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{i}</div>'
+            f'<div style="color:{ui.MUTED};font-size:13px;line-height:1.5;">{ui.esc(rec)}</div></div>'
+            for i, rec in enumerate(structured["product_recommendations"], start=1)
+        )
+        parts.append(f'<div style="color:{ui.FAINT};font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:16px 0 8px;">Product Recommendations</div>{recs}')
 
     if evidence:
-        st.markdown("**SUPPORTING EVIDENCE**")
+        parts.append(f'<div style="color:{ui.FAINT};font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:16px 0 8px;">Supporting Evidence</div>')
         for e in evidence[:5]:
-            c1, c2, c3 = st.columns([1.2, 1, 2])
-            c1.markdown(source_badge(e["source"]), unsafe_allow_html=True)
-            c2.markdown(f"_{_sentiment_label(e['sentiment'])}_")
-            tag = _theme_tag(e)
-            c3.markdown(f"`{tag}`" if tag else "")
-            st.markdown(quote_block(e["text"][:280]), unsafe_allow_html=True)
-            date_str = e["date"][:10] if e.get("date") else ""
-            st.caption(f"{date_str} · {e['url']}")
+            name, color = ui.SOURCE_META.get(e["source"], (e["source"].title(), ui.MUTED))
+            scol = ui.sentiment_color(e["sentiment"])
+            slabel = ui.sentiment_label(e["sentiment"])
+            tag = e["barrier_type"] if e.get("barrier_type", "none") != "none" else e.get("behaviour_signal", "")
+            date = e["date"][:10] if e.get("date") else ""
+            parts.append(f'<div style="border-left:2px solid {color};padding:2px 0 2px 12px;margin:10px 0;">'
+                         f'<div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;">'
+                         f'<span class="ui-badge" style="color:{color};border-color:{color}55;background:{color}12;">{name}</span>'
+                         f'<span style="color:{scol};font-size:12px;font-style:italic;">{slabel}</span>'
+                         f'<span style="color:{ui.FAINT};font-size:11px;font-family:monospace;">{ui.esc(tag)}</span></div>'
+                         f'<div style="color:{ui.TXT};font-size:12px;font-style:italic;line-height:1.5;">"{ui.esc(e["text"][:260])}"</div>'
+                         f'<div style="color:{ui.FAINT};font-size:11px;margin-top:3px;">{date} · {ui.esc(e["url"][:70])}</div></div>')
 
-    method_label = {
-        "gemini": "Vector similarity (RAG) · Gemini-generated",
+    method = {
+        "gemini": "Vector similarity (RAG) · LLM-generated",
         "extractive": "Vector similarity (RAG) · Extractive fallback (daily LLM quota exhausted)",
         "none": "No evidence retrieved",
-    }[structured["method"]]
-    st.caption(method_label)
-    card_end()
+    }.get(structured.get("method"), "")
+    parts.append(f'<div style="color:{ui.FAINT};font-size:11px;margin-top:14px;">{method}</div></div>')
+    ui.flush(parts)
 
 
 def render():
@@ -92,34 +80,27 @@ def render():
     if "copilot_messages" not in st.session_state:
         st.session_state.copilot_messages = []
 
-    def ask(query: str):
-        matched_themes = retrieve_themes(query)
+    def ask(query):
+        matched = retrieve_themes(query)
         evidence = retrieve_evidence(query, top_k=8)
-        structured = generate_structured_answer(query, evidence, matched_themes)
-        st.session_state.copilot_messages.append({
-            "query": query, "structured": structured, "evidence": evidence, "themes": matched_themes,
-        })
+        structured = generate_structured_answer(query, evidence, matched)
+        st.session_state.copilot_messages.append({"query": query, "structured": structured, "evidence": evidence})
+
+    ui.flush(ui.hero("💬", "Chat Terminal", "How can I help your discovery research?",
+                     "I analyze thousands of real Blinkit reviews and discussions to answer product "
+                     "questions with evidence-backed, cited insight."))
 
     if not st.session_state.copilot_messages:
-        st.markdown(
-            "<div style='text-align:center;padding:32px 0;'>"
-            "<div style='width:56px;height:56px;background:#F9D507;border-radius:10px;"
-            "display:inline-flex;align-items:center;justify-content:center;font-size:28px;'>🔎</div>"
-            "<h2 style='margin-top:12px;'>Insight Engine</h2>"
-            "<p style='color:#5f5e5e;'>Query the enriched Blinkit review corpus using natural language "
-            "for evidence-backed insight.</p></div>",
-            unsafe_allow_html=True,
-        )
-        st.markdown("**Suggested questions**")
+        st.markdown(f'<div style="color:{ui.FAINT};font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:20px 2px 12px;">Suggested Questions</div>', unsafe_allow_html=True)
         cols = st.columns(2)
-        for i, question in enumerate(SUGGESTED_QUESTIONS):
-            if cols[i % 2].button(question, use_container_width=True, key=f"suggested_{i}"):
-                ask(question)
+        for i, q in enumerate(SUGGESTED_QUESTIONS):
+            if cols[i % 2].button("✦  " + q, use_container_width=True, key=f"sug_{i}"):
+                ask(q)
                 st.rerun()
 
-    for message in st.session_state.copilot_messages:
-        _render_answer_card(message["query"], message["structured"], message["evidence"], message["themes"])
+    for msg in st.session_state.copilot_messages:
+        _render_answer_card(msg)
 
-    if query := st.chat_input("Ask a follow-up question or start a new analysis..."):
+    if query := st.chat_input("Ask about barriers, categories, segments, discovery…"):
         ask(query)
         st.rerun()
