@@ -63,8 +63,9 @@ with st.sidebar:
         st.caption(f"Evidence indexed: {manifest['n_evidence']}")
         st.caption(f"Themes indexed: {manifest['n_themes']}")
 
-st.markdown("## Discovery Engine")
-st.caption("Why Blinkit users stay inside familiar shopping categories — evidence-backed, not model priors.")
-st.markdown(f"### {st.session_state.active_page}")
+if st.session_state.active_page != "Overview":
+    st.markdown("## Discovery Engine")
+    st.caption("Why Blinkit users stay inside familiar shopping categories — evidence-backed, not model priors.")
+    st.markdown(f"### {st.session_state.active_page}")
 
 PAGES[st.session_state.active_page][1].render()
