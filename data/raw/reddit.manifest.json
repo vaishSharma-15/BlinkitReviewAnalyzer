@@ -1,0 +1,28 @@
+{
+  "source": "reddit",
+  "run_at": "2026-07-21T20:06:01.649181+00:00",
+  "config": {
+    "subreddits": [
+      "india",
+      "bangalore",
+      "mumbai",
+      "delhi",
+      "hyderabad",
+      "pune",
+      "IndianFood",
+      "personalfinanceindia",
+      "IndianPets",
+      "dogs",
+      "BeautyBoardIndia"
+    ],
+    "search_terms": [
+      "blinkit",
+      "grofers"
+    ],
+    "comment_limit_per_post": 50
+  },
+  "fetched": 0,
+  "written": 0,
+  "total_in_file": 0,
+  "blocked_reason": "missing Reddit API credentials"
+}

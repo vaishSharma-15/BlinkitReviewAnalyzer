@@ -1,0 +1,14 @@
+{
+  "source": "play",
+  "run_at": "2026-07-21T20:20:29.774488+00:00",
+  "config": {
+    "app_id": "com.grofers.customerapp",
+    "country": "in",
+    "lang": "en",
+    "target_count": 3000
+  },
+  "fetched": 32139,
+  "written": 32139,
+  "total_in_file": 32139,
+  "cutoff": "2024-07-31T20:19:00.354430+00:00"
+}

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Discovery Engine | Chat Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .chat-container { height: calc(100vh - 64px); }
+        .glass-header { backdrop-filter: blur(8px); background-color: rgba(247, 249, 251, 0.8); }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed": "#1c1b1b",
+                        "surface-bright": "#f7f9fb",
+                        "primary-fixed-dim": "#e6c500",
+                        "on-background": "#191c1e",
+                        "surface-container-low": "#f2f4f6",
+                        "background": "#f7f9fb",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-tertiary-container": "#4e5e74",
+                        "on-primary-fixed": "#221b00",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "outline": "#7e775f",
+                        "tertiary-fixed": "#d3e4fe",
+                        "outline-variant": "#cfc6ab",
+                        "on-error": "#ffffff",
+                        "secondary-fixed": "#e5e2e1",
+                        "inverse-surface": "#2d3133",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e0e3e5",
+                        "on-error-container": "#93000a",
+                        "tertiary-container": "#c7d8f2",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#474746",
+                        "on-primary-fixed-variant": "#534600",
+                        "on-tertiary-fixed-variant": "#38485d",
+                        "secondary": "#5f5e5e",
+                        "primary-fixed": "#ffe261",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-dim": "#d8dadc",
+                        "error-container": "#ffdad6",
+                        "on-primary-container": "#6d5c00",
+                        "primary": "#6e5d00",
+                        "tertiary": "#505f76",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed-dim": "#b7c8e1",
+                        "on-secondary-container": "#636262",
+                        "primary-container": "#f9d507",
+                        "surface-container": "#eceef0",
+                        "secondary-container": "#e2dfde",
+                        "error": "#ba1a1a",
+                        "inverse-primary": "#e6c500",
+                        "surface": "#f7f9fb",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-surface": "#191c1e",
+                        "on-tertiary-fixed": "#0b1c30",
+                        "surface-tint": "#6e5d00",
+                        "on-surface-variant": "#4c4732"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "container-padding": "24px",
+                        "section-gap": "32px",
+                        "element-gap-sm": "8px",
+                        "unit": "4px",
+                        "element-gap-md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "title-md": ["Inter"],
+                        "display-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "label-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "display-sm": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "title-lg": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface">
+<!-- TopNavBar Shell -->
+<header class="fixed top-0 left-64 right-0 z-30 bg-surface-container-lowest text-on-surface border-b border-outline-variant h-16 flex justify-between items-center px-container-padding">
+<div class="flex items-center gap-element-gap-md">
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface">Chat Terminal</h1>
+<div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
+<nav class="flex gap-element-gap-md h-16">
+<a class="flex items-center text-on-surface-variant hover:text-on-surface transition-colors font-title-md text-title-md h-full px-2" href="#">Overview</a>
+<a class="flex items-center text-on-surface-variant hover:text-on-surface transition-colors font-title-md text-title-md h-full px-2" href="#">Analytics</a>
+<a class="flex items-center text-on-surface-variant hover:text-on-surface transition-colors font-title-md text-title-md h-full px-2" href="#">Theme Intelligence</a>
+<a class="flex items-center text-on-surface dark:text-on-surface border-b-2 border-primary-fixed dark:border-primary-fixed font-bold font-title-md text-title-md h-full px-2" href="#">Chat Terminal</a>
+</nav>
+</div>
+<div class="flex items-center gap-element-gap-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:bg-surface-container-low p-2 rounded-lg transition-colors">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:bg-surface-container-low p-2 rounded-lg transition-colors">settings</span>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="Professional studio portrait of a technology researcher in a minimalist office setting, soft natural lighting, high-end corporate aesthetic with a neutral color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOPfHt5p0JHu1BrmalcfXl3P0k46oiYBtI-ccMmstn4Y4zgMGUiJwna_AGerBqksZzZgCfmIARgDSE60aqJGrOwNg6BHrJFeWE2O7T_COk-GoWzfSmLHRPFqH-UqtxQVKTKizG5UP4dObEoHKzVagav_LnTwwIYYWhJMUTj92auEE9n4v1bOIRdeqNRNon_UFve-ZJVVct93z0RMPB58VpUsP30wEefdeg_lNG-E4t2I-i-Zeqmwying"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 bottom-0 w-64 bg-on-secondary-fixed text-primary-fixed flex flex-col z-40 shadow-sm">
+<div class="p-container-padding flex flex-col gap-unit">
+<div class="flex items-center gap-element-gap-md mb-4">
+<div class="w-10 h-10 bg-primary-fixed flex items-center justify-center rounded-lg">
+<span class="material-symbols-outlined text-on-primary-fixed" style="font-variation-settings: 'FILL' 1;">psychology</span>
+</div>
+<div>
+<div class="font-title-lg text-title-lg font-black text-primary-fixed">Discovery Engine</div>
+<div class="font-label-md text-label-md text-secondary-fixed-dim uppercase tracking-widest">v2.4 Research Suite</div>
+</div>
+</div>
+<button class="bg-primary-fixed text-on-primary-fixed py-3 px-4 rounded-lg font-title-md text-title-md font-bold flex items-center justify-center gap-element-gap-sm hover:opacity-90 transition-all active:scale-95 mb-section-gap">
+<span class="material-symbols-outlined">add_circle</span>
+                New Analysis
+            </button>
+</div>
+<nav class="flex-grow">
+<div class="space-y-unit">
+<a class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-container-padding py-3 transition-all hover:bg-on-secondary-fixed-variant" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Overview</span>
+</a>
+<a class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-container-padding py-3 transition-all hover:bg-on-secondary-fixed-variant" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+<a class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-container-padding py-3 transition-all hover:bg-on-secondary-fixed-variant" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-label-md text-label-md">Theme Intelligence</span>
+</a>
+<a class="bg-secondary-fixed-variant text-primary-fixed border-l-4 border-primary-fixed flex items-center gap-element-gap-md px-container-padding py-3" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">terminal</span>
+<span class="font-label-md text-label-md">Chat Terminal</span>
+</a>
+</div>
+</nav>
+<div class="p-container-padding border-t border-on-secondary-fixed-variant">
+<div class="space-y-unit">
+<a class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-2 py-2 transition-all" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="font-label-md text-label-md">Documentation</span>
+</a>
+<a class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-2 py-2 transition-all" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span class="font-label-md text-label-md">Support</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 mt-16 chat-container flex flex-col relative overflow-hidden bg-surface">
+<!-- Chat History Scrollable Area -->
+<div class="flex-grow overflow-y-auto custom-scrollbar p-container-padding space-y-section-gap">
+<!-- Welcome State: Suggested Questions -->
+<div class="max-w-4xl mx-auto pt-8">
+<div class="flex flex-col items-center mb-8">
+<div class="w-16 h-16 bg-primary-container text-on-primary-container rounded-2xl flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<h2 class="font-display-sm text-display-sm text-on-surface">Insight Engine</h2>
+<p class="font-body-md text-body-md text-on-surface-variant text-center max-w-md">Query the entire customer intelligence database using natural language for precision insights.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-element-gap-md">
+<button class="bg-surface-container-lowest border border-outline-variant p-4 rounded-xl hover:border-primary transition-colors text-left group">
+<span class="material-symbols-outlined text-primary mb-2">lightbulb</span>
+<div class="font-title-md text-title-md text-on-surface">Why do users hesitate on electronics?</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-2 group-hover:text-primary transition-colors">Launch analysis →</div>
+</button>
+<button class="bg-surface-container-lowest border border-outline-variant p-4 rounded-xl hover:border-primary transition-colors text-left group">
+<span class="material-symbols-outlined text-primary mb-2">trending_up</span>
+<div class="font-title-md text-title-md text-on-surface">Top conversion drivers for Q3</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-2 group-hover:text-primary transition-colors">Launch analysis →</div>
+</button>
+<button class="bg-surface-container-lowest border border-outline-variant p-4 rounded-xl hover:border-primary transition-colors text-left group">
+<span class="material-symbols-outlined text-primary mb-2">groups</span>
+<div class="font-title-md text-title-md text-on-surface">Analyze segment 'Tech-Enthusiasts'</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-2 group-hover:text-primary transition-colors">Launch analysis →</div>
+</button>
+</div>
+</div>
+<!-- Structured Answer Card Example -->
+<div class="max-w-5xl mx-auto">
+<!-- User Question -->
+<div class="flex justify-end mb-element-gap-md">
+<div class="bg-secondary-container text-on-secondary-container px-4 py-3 rounded-2xl rounded-tr-none max-w-lg font-body-md text-body-md">
+                        Why do users hesitate on electronics purchases during high-traffic sales?
+                    </div>
+</div>
+<!-- AI Response Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
+<!-- Card Header -->
+<div class="bg-surface-container-low px-6 py-4 border-b border-outline-variant flex items-center gap-element-gap-md">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-title-md text-title-md text-on-surface">Analysis: Purchase Hesitation Drivers</span>
+<span class="ml-auto text-label-sm font-label-sm text-on-surface-variant">Processed 2.4k data points</span>
+</div>
+<div class="p-6 space-y-section-gap">
+<!-- Executive Summary -->
+<section>
+<div class="flex items-center gap-element-gap-sm mb-3">
+<span class="material-symbols-outlined text-on-tertiary-fixed-variant" style="font-variation-settings: 'opsz' 20;">summarize</span>
+<h3 class="font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">Executive Summary</h3>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface leading-relaxed">
+                                Users are primarily deterred by <span class="bg-primary-fixed/30 px-1 font-semibold">hidden warranty costs</span> and complex checkout flows during peak hours. While price is competitive, the lack of immediate technical reassurance at the point of sale results in a 24% abandonment rate specifically for premium electronics ($500+).
+                            </p>
+</section>
+<!-- Theme Breakdown -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="p-4 bg-surface-container-lowest border border-outline-variant rounded-lg border-l-4 border-l-primary-fixed">
+<div class="flex items-center gap-element-gap-sm mb-2">
+<span class="material-symbols-outlined text-primary">security</span>
+<h4 class="font-title-md text-title-md">Warranty Transparency</h4>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">64% of users mention difficulty finding accidental damage coverage terms before final checkout.</p>
+</div>
+<div class="p-4 bg-surface-container-lowest border border-outline-variant rounded-lg border-l-4 border-l-primary-fixed">
+<div class="flex items-center gap-element-gap-sm mb-2">
+<span class="material-symbols-outlined text-primary">speed</span>
+<h4 class="font-title-md text-title-md">Latency Stress</h4>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Server response times over 1.2s correlate with high dropout in the high-ticket electronics segment.</p>
+</div>
+</section>
+<!-- Affected Segments -->
+<section>
+<div class="flex items-center gap-element-gap-sm mb-3">
+<span class="material-symbols-outlined text-on-tertiary-fixed-variant">pie_chart</span>
+<h3 class="font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">Affected Segments</h3>
+</div>
+<div class="flex flex-wrap gap-element-gap-sm">
+<span class="px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded-full font-label-md text-label-md flex items-center gap-unit">
+<span class="material-symbols-outlined text-sm">person</span> First-time Buyers
+                                </span>
+<span class="px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded-full font-label-md text-label-md flex items-center gap-unit">
+<span class="material-symbols-outlined text-sm">laptop_mac</span> Tech Enthusiasts
+                                </span>
+<span class="px-3 py-1 bg-error-container text-on-error-container rounded-full font-label-md text-label-md flex items-center gap-unit">
+<span class="material-symbols-outlined text-sm">warning</span> High LTV (At Risk)
+                                </span>
+</div>
+</section>
+<!-- Supporting Evidence -->
+<section>
+<div class="flex items-center gap-element-gap-sm mb-3">
+<span class="material-symbols-outlined text-on-tertiary-fixed-variant">fact_check</span>
+<h3 class="font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">Supporting Evidence</h3>
+</div>
+<div class="space-y-element-gap-md">
+<div class="p-4 border border-outline-variant bg-surface-bright rounded-lg flex flex-col gap-unit">
+<div class="flex items-center gap-element-gap-sm mb-2">
+<span class="material-symbols-outlined text-on-surface-variant text-base">reviews</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Customer Review #7721 - Verified Purchase</span>
+</div>
+<blockquote class="font-body-md text-body-md text-on-surface italic border-l-2 border-primary-fixed pl-4">
+                                        "I wanted the new monitor, but I couldn't tell if the protection plan covered screen burn-in. The page just kept loading without showing the policy detail, so I decided not to risk it."
+                                    </blockquote>
+<div class="mt-2 flex items-center gap-unit self-end">
+<span class="material-symbols-outlined text-sm text-primary">link</span>
+<span class="font-label-sm text-label-sm text-primary">View Source Transcript</span>
+</div>
+</div>
+<div class="p-4 border border-outline-variant bg-surface-bright rounded-lg flex flex-col gap-unit">
+<div class="flex items-center gap-element-gap-sm mb-2">
+<span class="material-symbols-outlined text-on-surface-variant text-base">forum</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Live Chat Log - Agent ID: 449</span>
+</div>
+<blockquote class="font-body-md text-body-md text-on-surface italic border-l-2 border-primary-fixed pl-4">
+                                        "User asked 3 times about extended warranty before abandoning cart during the checkout step. Total interaction time: 8min 12s."
+                                    </blockquote>
+<div class="mt-2 flex items-center gap-unit self-end">
+<span class="material-symbols-outlined text-sm text-primary">link</span>
+<span class="font-label-sm text-label-sm text-primary">View Full Log</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Footer Actions -->
+<div class="px-6 py-3 border-t border-outline-variant flex gap-element-gap-md bg-surface-container-lowest">
+<button class="flex items-center gap-unit text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm">thumb_up</span>
+<span class="font-label-md text-label-md">Helpful</span>
+</button>
+<button class="flex items-center gap-unit text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm">thumb_down</span>
+<span class="font-label-md text-label-md">Not Useful</span>
+</button>
+<button class="flex items-center gap-unit text-on-surface-variant hover:text-primary ml-auto transition-colors">
+<span class="material-symbols-outlined text-sm">share</span>
+<span class="font-label-md text-label-md">Export PDF</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Chat Input Area -->
+<div class="p-container-padding bg-surface border-t border-outline-variant glass-header">
+<div class="max-w-4xl mx-auto relative">
+<div class="flex items-end gap-element-gap-md bg-surface-container-lowest border border-outline-variant rounded-xl p-2 focus-within:border-primary-fixed focus-within:ring-1 focus-within:ring-primary-fixed transition-all shadow-sm">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<textarea class="flex-grow bg-transparent border-none focus:ring-0 resize-none font-body-md text-body-md py-2 px-1 max-h-32" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'" placeholder="Ask a follow-up question or start a new analysis..." rows="1"></textarea>
+<div class="flex items-center gap-unit pb-1 pr-1">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">mic</span>
+</button>
+<button class="bg-primary-fixed text-on-primary-fixed w-10 h-10 flex items-center justify-center rounded-lg hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</div>
+<div class="flex justify-between items-center mt-2 px-2">
+<p class="font-label-sm text-label-sm text-on-surface-variant italic">Discovery Engine may provide inaccurate data for very small segments.</p>
+<div class="flex gap-element-gap-md">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Shift + Enter for new line</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Simple micro-interaction for suggested question buttons
+        document.querySelectorAll('button.group').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const text = this.querySelector('.font-title-md').innerText;
+                const textarea = document.querySelector('textarea');
+                textarea.value = text;
+                textarea.focus();
+                textarea.style.height = textarea.scrollHeight + 'px';
+            });
+        });
+
+        // Dynamic height for textarea
+        const tx = document.querySelector('textarea');
+        tx.addEventListener("input", function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        }, false);
+    </script>
+</body></html>

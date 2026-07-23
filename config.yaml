@@ -1,0 +1,82 @@
+window_months: 24
+
+play_store:
+  app_id: com.grofers.customerapp
+  country: in
+  lang: en
+  target_count: 3000
+
+app_store:
+  app_id: 960335206   # Blinkit: Groceries & more, found via https://itunes.apple.com/search?term=blinkit
+  country: in
+
+reddit:
+  subreddits:
+    - india
+    - bangalore
+    - mumbai
+    - delhi
+    - hyderabad
+    - pune
+    - IndianFood
+    - personalfinanceindia
+    - IndianPets
+    - dogs
+    - BeautyBoardIndia
+  search_terms:
+    - blinkit
+    - grofers
+  comment_limit_per_post: 50
+
+youtube:
+  search_terms:
+    - blinkit
+    - "blinkit vs zepto"
+    - "blinkit vs instamart"
+    - "blinkit haul"
+    - "blinkit unboxing"
+    - "blinkit review"
+  max_videos_per_term: 15
+  max_comments_per_video: 100
+
+forums:
+  sites:
+    - name: quora
+      search_url_template: "https://www.quora.com/search?q={query}"
+    - name: mouthshut
+      search_url_template: "https://www.mouthshut.com/search-results.php?searchby=default&s={query}"
+  search_terms:
+    - blinkit
+  rate_limit_seconds: 1.0
+
+product_reviews:
+  skus:
+    - category: pet_supplies
+      query: "pedigree dog food"
+    - category: baby_care
+      query: "himalaya baby lotion"
+    - category: personal_care_beauty
+      query: "mamaearth face wash"
+    - category: electronics_accessories
+      query: "boat earphones"
+  fallback_sources:
+    - amazon_in
+    - nykaa
+  rate_limit_seconds: 1.0
+
+qcomm_discussions:
+  search_terms:
+    - "blinkit vs zepto"
+    - "blinkit vs instamart"
+    - "which quick commerce app do you use"
+  reddit_subreddits:
+    - india
+    - bangalore
+    - mumbai
+  youtube_search_terms:
+    - "blinkit vs zepto"
+    - "blinkit vs instamart"
+    - "blinkit vs zepto vs instamart"
+    - "which quick commerce app is best"
+  youtube_max_videos_per_term: 15
+  youtube_max_comments_per_video: 100

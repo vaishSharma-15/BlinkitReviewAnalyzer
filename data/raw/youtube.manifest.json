@@ -1,0 +1,21 @@
+{
+  "source": "youtube",
+  "run_at": "2026-07-21T20:31:16.017385+00:00",
+  "config": {
+    "search_terms": [
+      "blinkit",
+      "blinkit vs zepto",
+      "blinkit vs instamart",
+      "blinkit haul",
+      "blinkit unboxing",
+      "blinkit review"
+    ],
+    "max_videos_per_term": 15,
+    "max_comments_per_video": 100
+  },
+  "fetched": 2816,
+  "written": 2816,
+  "total_in_file": 2816,
+  "cutoff": "2024-07-31T20:26:28.986541+00:00",
+  "note": "fetched via yt-dlp search + youtube-comment-downloader (no YOUTUBE_API_KEY available), not the official Data API v3"
+}

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Discovery Engine - Corpus Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 16px;
+        }
+        .glass-card {
+            background: #ffffff;
+            border: 1px solid #E2E8F0;
+            transition: border-color 0.2s ease;
+        }
+        .glass-card:hover {
+            border-color: #CBD5E1;
+        }
+        .active-tab-indicator {
+            position: absolute;
+            left: 0;
+            height: 100%;
+            width: 4px;
+            background-color: #ffe261;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed": "#1c1b1b",
+                        "surface-bright": "#f7f9fb",
+                        "primary-fixed-dim": "#e6c500",
+                        "on-background": "#191c1e",
+                        "surface-container-low": "#f2f4f6",
+                        "background": "#f7f9fb",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-tertiary-container": "#4e5e74",
+                        "on-primary-fixed": "#221b00",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "outline": "#7e775f",
+                        "tertiary-fixed": "#d3e4fe",
+                        "outline-variant": "#cfc6ab",
+                        "on-error": "#ffffff",
+                        "secondary-fixed": "#e5e2e1",
+                        "inverse-surface": "#2d3133",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e0e3e5",
+                        "on-error-container": "#93000a",
+                        "tertiary-container": "#c7d8f2",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#474746",
+                        "on-primary-fixed-variant": "#534600",
+                        "on-tertiary-fixed-variant": "#38485d",
+                        "secondary": "#5f5e5e",
+                        "primary-fixed": "#ffe261",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-dim": "#d8dadc",
+                        "error-container": "#ffdad6",
+                        "on-primary-container": "#6d5c00",
+                        "primary": "#6e5d00",
+                        "tertiary": "#505f76",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed-dim": "#b7c8e1",
+                        "on-secondary-container": "#636262",
+                        "primary-container": "#f9d507",
+                        "surface-container": "#eceef0",
+                        "secondary-container": "#e2dfde",
+                        "error": "#ba1a1a",
+                        "inverse-primary": "#e6c500",
+                        "surface": "#f7f9fb",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-surface": "#191c1e",
+                        "on-tertiary-fixed": "#0b1c30",
+                        "surface-tint": "#6e5d00",
+                        "on-surface-variant": "#4c4732"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "container-padding": "24px",
+                        "section-gap": "32px",
+                        "element-gap-sm": "8px",
+                        "unit": "4px",
+                        "element-gap-md": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "title-md": ["Inter"],
+                        "display-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "label-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "display-sm": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "title-lg": ["18px", {"lineHeight": "26px", "fontWeight": "600"}],
+                        "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface-bright text-on-surface">
+<!-- SideNavBar Anchor -->
+<aside class="fixed left-0 top-0 bottom-0 flex flex-col z-40 bg-on-secondary-fixed w-64 shadow-sm h-full">
+<div class="px-6 py-8 flex flex-col gap-2">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-fixed flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-on-secondary-fixed font-bold">search_insights</span>
+</div>
+<div>
+<h1 class="font-title-lg text-title-lg font-black text-primary-fixed uppercase tracking-tighter">Discovery Engine</h1>
+<p class="text-secondary-fixed-dim text-[10px] uppercase tracking-widest">v2.4 Research Suite</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 mt-4">
+<!-- Active Tab: Overview -->
+<div class="bg-secondary-fixed-variant text-primary-fixed border-l-4 border-primary-fixed flex items-center gap-element-gap-md px-4 py-3 cursor-pointer">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Overview</span>
+</div>
+<div class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-4 py-3 cursor-pointer transition-all hover:bg-on-secondary-fixed-variant">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</div>
+<div class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-4 py-3 cursor-pointer transition-all hover:bg-on-secondary-fixed-variant">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-label-md text-label-md">Theme Intelligence</span>
+</div>
+<div class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-4 py-3 cursor-pointer transition-all hover:bg-on-secondary-fixed-variant">
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-label-md text-label-md">Chat Terminal</span>
+</div>
+</nav>
+<div class="px-4 py-6 border-t border-on-secondary-fixed-variant">
+<button class="w-full py-3 bg-primary-fixed text-on-secondary-fixed font-bold text-label-md rounded flex items-center justify-center gap-2 active:scale-95 duration-75">
+<span class="material-symbols-outlined">add</span>
+                New Analysis
+            </button>
+</div>
+<div class="pb-8 px-4 flex flex-col gap-2">
+<div class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-2 py-2 cursor-pointer text-xs">
+<span class="material-symbols-outlined text-lg">menu_book</span>
+<span>Documentation</span>
+</div>
+<div class="text-secondary-fixed-dim hover:text-primary-fixed-dim flex items-center gap-element-gap-md px-2 py-2 cursor-pointer text-xs">
+<span class="material-symbols-outlined text-lg">contact_support</span>
+<span>Support</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 p-container-padding min-h-screen">
+<!-- Header Section -->
+<header class="flex justify-between items-end mb-8">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Corpus Overview</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Real-time health monitoring and sentiment extraction</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="bg-surface-container-low px-4 py-2 rounded border border-outline-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">calendar_today</span>
+<span class="text-label-md font-label-md uppercase">Last 30 Days</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a data scientist in a corporate setting, with soft natural lighting and a neutral gray background, conveying expertise and precision." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBr3EwEBQ1DxLqj8sGnvl8oXT29Glp_7htgGeuHRDANlpO_tbFyt2qUxwCb2QFzxi0Vya9xh1W8zagL1TKm8rBXL72LBgmK1cCFovjXil3_PoDNeozrSKtAtn2fZzvpuAy21fdHwDNzLYUvs0XKGPDQwmIOZI_I72LZtufwxFMY9r6njZih8olGn3o-1CyHAo3qWmYEEz_1Z8G6BcJ7jGbxS4tK4mP4WJ4gpK5hWqXKU2IQFDtn0MIbwA"/>
+</div>
+</div>
+</header>
+<!-- Bento Grid Layout -->
+<div class="bento-grid">
+<!-- Metric Card: Total Items -->
+<div class="col-span-3 glass-card p-6 flex flex-col justify-between h-32">
+<div class="flex justify-between items-start">
+<span class="text-label-md font-label-md uppercase text-on-surface-variant tracking-wider">Total Items</span>
+<span class="material-symbols-outlined text-primary">database</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-display-sm text-display-sm text-on-surface">4,200</span>
+<span class="text-xs text-green-600 font-bold flex items-center">
+<span class="material-symbols-outlined text-sm">arrow_upward</span> 12%
+                    </span>
+</div>
+</div>
+<!-- Metric Card: Relevant Items -->
+<div class="col-span-3 glass-card p-6 flex flex-col justify-between h-32">
+<div class="flex justify-between items-start">
+<span class="text-label-md font-label-md uppercase text-on-surface-variant tracking-wider">Relevant Items</span>
+<span class="material-symbols-outlined text-primary">target</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-display-sm text-display-sm text-on-surface">1,850</span>
+<span class="text-xs text-on-surface-variant font-medium">44.0% of corpus</span>
+</div>
+</div>
+<!-- Sentiment Mix Gauge -->
+<div class="col-span-6 glass-card p-6">
+<h3 class="text-label-md font-label-md uppercase text-on-surface-variant tracking-wider mb-4">Sentiment Mix</h3>
+<div class="flex items-center gap-8 h-12">
+<div class="flex-1 h-3 bg-surface-container flex rounded-full overflow-hidden">
+<div class="h-full bg-green-500 w-[62%] transition-all" title="Positive"></div>
+<div class="h-full bg-primary-fixed w-[24%] transition-all" title="Neutral"></div>
+<div class="h-full bg-red-500 w-[14%] transition-all" title="Negative"></div>
+</div>
+<div class="flex gap-4">
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-green-500"></div>
+<span class="text-[10px] font-bold uppercase">62% Pos</span>
+</div>
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-primary-fixed border border-on-surface-variant/20"></div>
+<span class="text-[10px] font-bold uppercase">24% Neu</span>
+</div>
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-red-500"></div>
+<span class="text-[10px] font-bold uppercase">14% Neg</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Coverage Over Time Line Chart -->
+<div class="col-span-8 glass-card p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-label-md font-label-md uppercase text-on-surface-variant tracking-wider">Coverage Over Time</h3>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-primary-fixed text-[10px] font-bold rounded">DAILY</button>
+<button class="px-3 py-1 bg-surface-container text-[10px] font-bold rounded text-on-surface-variant hover:bg-surface-container-high">WEEKLY</button>
+</div>
+</div>
+<div class="relative h-64 w-full flex items-end gap-1">
+<!-- Faux Line Chart Visualization -->
+<svg class="w-full h-full overflow-visible" viewbox="0 0 800 200">
+<defs>
+<lineargradient id="line-grad" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#ffe261" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#ffe261" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,150 Q100,140 200,160 T400,100 T600,120 T800,80" fill="none" stroke="#6e5d00" stroke-width="3"></path>
+<path d="M0,150 Q100,140 200,160 T400,100 T600,120 T800,80 V200 H0 Z" fill="url(#line-grad)"></path>
+<!-- Grid Lines -->
+<line stroke="#E2E8F0" stroke-dasharray="4" x1="0" x2="800" y1="50" y2="50"></line>
+<line stroke="#E2E8F0" stroke-dasharray="4" x1="0" x2="800" y1="100" y2="100"></line>
+<line stroke="#E2E8F0" stroke-dasharray="4" x1="0" x2="800" y1="150" y2="150"></line>
+</svg>
+<!-- Floating Data Point -->
+<div class="absolute top-[80px] left-[750px] group">
+<div class="w-3 h-3 bg-on-secondary-fixed rounded-full border-2 border-primary-fixed cursor-pointer"></div>
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-on-secondary-fixed text-primary-fixed text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                            Today: 1,850 matches
+                        </div>
+</div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest px-2">
+<span>Oct 01</span>
+<span>Oct 07</span>
+<span>Oct 14</span>
+<span>Oct 21</span>
+<span>Oct 28</span>
+</div>
+</div>
+<!-- Top Barriers Chart -->
+<div class="col-span-4 glass-card p-6">
+<h3 class="text-label-md font-label-md uppercase text-on-surface-variant tracking-wider mb-6">Top Barriers</h3>
+<div class="flex flex-col gap-6">
+<div>
+<div class="flex justify-between text-label-md mb-2">
+<span class="font-bold">Trust</span>
+<span class="text-on-surface-variant">42%</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim w-[42%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-label-md mb-2">
+<span class="font-bold">Price</span>
+<span class="text-on-surface-variant">31%</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim w-[31%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-label-md mb-2">
+<span class="font-bold">Assortment</span>
+<span class="text-on-surface-variant">27%</span>
+</div>
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed-dim w-[27%]"></div>
+</div>
+</div>
+</div>
+<div class="mt-12 p-4 bg-surface-container-low border-l-4 border-primary-fixed">
+<p class="text-xs text-on-surface font-medium italic">"Trust concerns remain the primary bottleneck in the research pipeline, primarily driven by data source validity."</p>
+</div>
+</div>
+<!-- Recent Reviews Feed -->
+<div class="col-span-12 glass-card p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-label-md font-label-md uppercase text-on-surface-variant tracking-wider">Recent Reviews</h3>
+<button class="text-xs font-bold text-primary hover:underline underline-offset-4 flex items-center gap-1">
+                        View All <span class="material-symbols-outlined text-sm">open_in_new</span>
+</button>
+</div>
+<div class="overflow-hidden">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low border-b border-outline-variant">
+<tr>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant uppercase">Reviewer ID</th>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant uppercase">Subject</th>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant uppercase">Snippet</th>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant uppercase text-center">Score</th>
+<th class="py-3 px-4 font-label-md text-label-md text-on-surface-variant uppercase text-right">Date</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="py-4 px-4 font-bold text-xs">#USER-8821</td>
+<td class="py-4 px-4 text-xs font-semibold">Quality Assessment</td>
+<td class="py-4 px-4 text-xs text-on-surface-variant max-w-xs truncate">The discovery engine identified a significant gap in our current assortment logic...</td>
+<td class="py-4 px-4 text-center">
+<span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded">9.2</span>
+</td>
+<td class="py-4 px-4 text-right text-[10px] font-bold text-on-surface-variant uppercase">2 mins ago</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="py-4 px-4 font-bold text-xs">#USER-7419</td>
+<td class="py-4 px-4 text-xs font-semibold">API Latency</td>
+<td class="py-4 px-4 text-xs text-on-surface-variant max-w-xs truncate">Response times during peak analysis hours have stabilized significantly compared to v2.3...</td>
+<td class="py-4 px-4 text-center">
+<span class="px-2 py-1 bg-primary-container text-on-primary-container text-[10px] font-bold rounded">7.8</span>
+</td>
+<td class="py-4 px-4 text-right text-[10px] font-bold text-on-surface-variant uppercase">14 mins ago</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="py-4 px-4 font-bold text-xs">#USER-1205</td>
+<td class="py-4 px-4 text-xs font-semibold">Theme Clustering</td>
+<td class="py-4 px-4 text-xs text-on-surface-variant max-w-xs truncate">Manual verification of relevant items matched automated clustering with 89% precision...</td>
+<td class="py-4 px-4 text-center">
+<span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded">8.9</span>
+</td>
+<td class="py-4 px-4 text-right text-[10px] font-bold text-on-surface-variant uppercase">1 hour ago</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="py-4 px-4 font-bold text-xs">#USER-3398</td>
+<td class="py-4 px-4 text-xs font-semibold">Billing Integration</td>
+<td class="py-4 px-4 text-xs text-on-surface-variant max-w-xs truncate">Minor discrepancy noted in seat usage metrics, likely due to multi-session logging...</td>
+<td class="py-4 px-4 text-center">
+<span class="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-bold rounded">4.2</span>
+</td>
+<td class="py-4 px-4 text-right text-[10px] font-bold text-on-surface-variant uppercase">3 hours ago</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Footer Branding -->
+<footer class="mt-section-gap pt-6 border-t border-outline-variant flex justify-between items-center opacity-50">
+<span class="text-[10px] font-bold uppercase tracking-widest">Powered by Blinkit Discovery Cluster v2.4</span>
+<div class="flex gap-4">
+<span class="text-[10px] font-bold uppercase tracking-widest">Privacy</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Compliance</span>
+</div>
+</footer>
+</main>
+<script>
+        // Simple micro-interaction for cards
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.transition = 'all 0.2s ease';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Simulating some dynamic updates in the gauge
+        setInterval(() => {
+            const gaugeParts = document.querySelectorAll('.h-3.bg-surface-container > div');
+            if(gaugeParts.length > 0) {
+                // Just a subtle flicker to show "aliveness"
+                const flux = (Math.random() * 0.4) - 0.2;
+                const current = parseFloat(gaugeParts[0].style.width);
+                gaugeParts[0].style.width = (current + flux) + '%';
+            }
+        }, 3000);
+    </script>
+</body></html>

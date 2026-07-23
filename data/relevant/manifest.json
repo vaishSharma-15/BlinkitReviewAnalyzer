@@ -1,0 +1,12 @@
+{
+  "total_records": 23835,
+  "sent_to_llm": 10030,
+  "prefiltered_out": 13805,
+  "relevant": 3950,
+  "not_relevant": 19885,
+  "failed": 0,
+  "not_yet_attempted": 0,
+  "quota_exhausted_stopped_early": false,
+  "prompt_version": "v2-batch",
+  "batch_size": 40
+}

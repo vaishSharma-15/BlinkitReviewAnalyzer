@@ -1,0 +1,24 @@
+{
+  "funnel": {
+    "raw": 36771,
+    "after_length_filter": 25155,
+    "after_spam_filter": 25078,
+    "after_exact_dedup": 23946,
+    "after_near_dedup": 23835
+  },
+  "language_breakdown": {
+    "en": 22222,
+    "hinglish": 1485,
+    "hi": 112,
+    "other": 16
+  },
+  "source_breakdown": {
+    "play": 20571,
+    "appstore": 358,
+    "youtube": 2332,
+    "product_review": 32,
+    "qcomm_comparison": 542
+  },
+  "min_length": 15,
+  "near_dup_threshold": 0.95
+}

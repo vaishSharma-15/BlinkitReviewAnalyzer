@@ -1,0 +1,13 @@
+{
+  "source": "appstore",
+  "run_at": "2026-07-21T20:22:37.580511+00:00",
+  "config": {
+    "app_id": 960335206,
+    "country": "in"
+  },
+  "fetched": 500,
+  "written": 500,
+  "total_in_file": 500,
+  "cutoff": "2024-07-31T20:22:35.350418+00:00",
+  "note": "Apple's public customer-reviews feed caps at 10 pages (~500 most-recent reviews); this is the full available volume from this endpoint, not a partial run."
+}

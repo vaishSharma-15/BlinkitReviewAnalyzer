@@ -1,0 +1,25 @@
+{
+  "source": "forum",
+  "run_at": "2026-07-21T20:16:46.867687+00:00",
+  "config": {
+    "sites": [
+      {
+        "name": "quora",
+        "search_url_template": "https://www.quora.com/search?q={query}"
+      },
+      {
+        "name": "mouthshut",
+        "search_url_template": "https://www.mouthshut.com/search-results.php?searchby=default&s={query}"
+      }
+    ],
+    "search_terms": [
+      "blinkit"
+    ],
+    "rate_limit_seconds": 1.0
+  },
+  "fetched": 0,
+  "written": 0,
+  "total_in_file": 0,
+  "cutoff": "2024-07-31T20:16:39.708708+00:00",
+  "note": "search-results scraping; no reliable post date available at listing level \u2014 verify per-item selectors before a full run"
+}

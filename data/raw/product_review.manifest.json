@@ -1,0 +1,34 @@
+{
+  "source": "product_review",
+  "run_at": "2026-07-21T20:17:09.125540+00:00",
+  "config": {
+    "skus": [
+      {
+        "category": "pet_supplies",
+        "query": "pedigree dog food"
+      },
+      {
+        "category": "baby_care",
+        "query": "himalaya baby lotion"
+      },
+      {
+        "category": "personal_care_beauty",
+        "query": "mamaearth face wash"
+      },
+      {
+        "category": "electronics_accessories",
+        "query": "boat earphones"
+      }
+    ],
+    "fallback_sources": [
+      "amazon_in",
+      "nykaa"
+    ],
+    "rate_limit_seconds": 1.0
+  },
+  "fetched": 39,
+  "written": 39,
+  "total_in_file": 49,
+  "cutoff": "2024-07-31T20:16:53.944107+00:00",
+  "note": "Blinkit PDP reviews are not publicly scrapable without an authenticated session; records fall back to Amazon India / Nykaa and are tagged meta.vendor + meta.is_proxy_source honestly."
+}
