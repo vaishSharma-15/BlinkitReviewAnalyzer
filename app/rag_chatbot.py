@@ -62,11 +62,6 @@ with st.sidebar:
         manifest = json.loads(manifest_path.read_text())
         st.caption(f"Evidence indexed: {manifest['n_evidence']}")
         st.caption(f"Themes indexed: {manifest['n_themes']}")
-    st.divider()
-    st.caption(
-        "Partial, in-progress corpus — some records are still pending enrichment "
-        "due to the shared LLM daily quota. See Analytics for the live funnel."
-    )
 
 st.markdown("## Discovery Engine")
 st.caption("Why Blinkit users stay inside familiar shopping categories — evidence-backed, not model priors.")
