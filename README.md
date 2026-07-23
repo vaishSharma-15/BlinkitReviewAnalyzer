@@ -127,9 +127,64 @@ pre-filtered out are logged in `data/relevant/all_classifications.jsonl` with
 
 `python -m src.enrich --config config.yaml` adds closed-vocabulary structured labels
 (categories, behaviour signal, barrier type, segment signals, sentiment, quote-worthy)
-to each relevant record, per `prompts/enrich.md`. Every LLM response is validated
-against the closed vocabularies in `src/schemas.py`; violations are retried once with a
-repair instruction, then quarantined to `data/enriched/failed.jsonl`.
+**and a primary theme assignment (`theme_id`)** to each relevant record, per
+`prompts/enrich_batch.md`. Every LLM response is validated against the closed
+vocabularies in `src/schemas.py`; violations are retried once with a repair
+instruction, then quarantined to `data/enriched/failed.jsonl`.
+
+**Theme classification is supervised, not clustered.** Each record gets exactly one
+`theme_id` from a fixed 9-theme taxonomy (`platform_mental_model`,
+`category_specific_distrust`, `first_trial_story`, `habit_and_reorder`,
+`discovery_mechanics`, `assortment_gaps`, `price_and_value`, `life_event_trigger`,
+`cross_platform_comparison`), or `unclassified` if none fit — assigned in the same LLM
+call as the other labels, at no extra quota cost. This taxonomy was hand-designed
+against the eight research questions in `docs/ProblemStatement.md` §4, then adopted
+after an earlier fully-unsupervised approach (HDBSCAN over embeddings, no fixed
+categories) was tried first and rejected: on this corpus it found only 3 clusters with
+66% of records landing in the noise bucket — too coarse to answer the research
+questions. Supervised classification against the fixed taxonomy leaves only 13.9%
+`unclassified`.
+
+## Phase 05 — Cluster (secondary check only)
+
+`python -m src.cluster --config config.yaml --input data/clustered/unclassified.jsonl`
+runs the original embedding + PCA + HDBSCAN pipeline, but now **only on the
+`unclassified` subset** left over from Phase 04, as a check for a theme the fixed
+taxonomy is missing — not as the primary theming mechanism. A cluster emerging here
+that's large and coherent is a signal to add a 10th theme to `src/schemas.py` THEMES +
+`prompts/enrich_batch.md`, not a theme in its own right. On the current corpus, the
+unclassified subset itself clusters into groups that match the spec's own definition of
+noise (generic refund complaints with no product named, generic delivery-speed praise) —
+so no taxonomy change was needed.
+
+## Phase 06 — Synthesize
+
+`python -m src.synthesize --config config.yaml` groups Phase 04's enriched records by
+`theme_id` (no clustering, no LLM call — purely a group-by over labels already
+assigned), maps each theme to the research questions it answers via a fixed
+theme→question table, and ranks themes by `prevalence × severity × strategic_relevance`.
+Writes `data/themes/themes.jsonl` and `data/themes/research_questions.json` (which of
+Q1–Q8 are answered, and by which themes).
+
+## Phase 07 — Validate (the insight quality scorecard)
+
+`python -m src.validate --config config.yaml` reads every stage's output and writes
+`reports/scorecard.md`: gold-set classifier accuracy, inter-run stability, cross-source
+triangulation, a citation audit, counter-evidence search per theme, an older-vs-newer
+recency split, the ingest funnel, and per-theme source-bias flags.
+
+**Gold set is intentionally not automated.** `python -m src.gold_label` is a resumable
+CLI that samples 100 items (seeded, cached to `data/gold/sample.jsonl`) and asks a human
+to judge relevance + barrier_type for each, saving to `data/gold/labels.jsonl`. Grading
+an LLM classifier against labels the same LLM produced would be circular, so this step
+requires the user's own judgment — `src.validate` reports gold-set metrics as
+`"status": "pending"` until it's been done, never a fabricated placeholder number.
+
+**Inter-run stability** re-runs theme classification on a fresh sample (bypassing the
+disk cache, so it's a genuine independent second LLM pass) and reports theme_id
+agreement with the original run — the spec's original wording ("re-cluster a 90%
+bootstrap sample") assumed unsupervised clustering; this is the equivalent check for
+the current supervised-classification design (see Phase 04/05 above).
 
 ## RAG chatbot
 
