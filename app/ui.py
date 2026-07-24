@@ -35,7 +35,7 @@ NEG = "#e11d48"
 CAT = ["#f97316", "#2563eb", "#16a34a", "#0d9488", "#9333ea", "#db2777", "#d97706", "#0ea5e9", "#ca8a04"]
 
 SOURCE_META = {
-    "play": ("Google Play", "#16a34a"),
+    "play": ("Play Store", "#16a34a"),
     "appstore": ("App Store", "#64748b"),
     "youtube": ("YouTube", "#ef4444"),
     "qcomm_comparison": ("Q-Comm Threads", "#d97706"),
@@ -291,7 +291,9 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
 .ui-year {{ background:{CARD2}; border:1px solid {BORDER}; border-radius:10px; padding:14px; }}
 .ui-year-head {{ display:flex; justify-content:space-between; color:{TXT}; font-size:14px; font-weight:800; margin-bottom:9px; }}
 .ui-year-n {{ color:{MUTED}; font-weight:600; font-size:13px; }}
-.ui-year-bar {{ display:flex; height:7px; border-radius:4px; overflow:hidden; background:{PAGE}; }}
+.ui-year-bar {{ display:flex; height:11px; border-radius:5px; overflow:hidden; background:{PAGE}; }}
+.ui-year-src {{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:10px; }}
+.ui-year-src span {{ display:inline-flex; align-items:center; color:{MUTED}; font-size:11px; }}
 
 /* Collection funnel */
 .ui-funnel {{ display:flex; flex-direction:column; gap:10px; }}

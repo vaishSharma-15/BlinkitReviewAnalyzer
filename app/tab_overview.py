@@ -199,21 +199,26 @@ def _coverage(df):
     for y in years:
         sub = dated[dated["year"] == y]
         n = len(sub)
+        vc = sub["source"].value_counts()
+        # flex-grow keeps the bar proportional, but min-width guarantees every present
+        # source shows as a visible sliver even when Play Store dominates the volume.
         seg = "".join(
-            f'<div style="width:{c/n*100:.1f}%;background:{ui.SOURCE_META.get(s, (s, ui.MUTED))[1]};"></div>'
-            for s, c in sub["source"].value_counts().items()
+            f'<div style="flex:{c} 1 0;min-width:8px;background:{ui.SOURCE_META.get(s, (s, ui.MUTED))[1]};"></div>'
+            for s, c in vc.items()
+        )
+        breakdown = "".join(
+            f'<span><span class="ui-dot" style="width:8px;height:8px;background:{ui.SOURCE_META.get(s, (s, ui.MUTED))[1]};"></span>'
+            f'{ui.SOURCE_META.get(s, (s, ui.MUTED))[0]}&nbsp;<b style="color:{ui.TXT};">{ui.fmt_full(c)}</b></span>'
+            for s, c in vc.items()
         )
         cards.append(f'<div class="ui-year"><div class="ui-year-head"><span>{y}</span>'
-                     f'<span class="ui-year-n">{ui.fmt_full(n)}</span></div><div class="ui-year-bar">{seg}</div></div>')
-    legend = "".join(
-        f'<div class="ui-leg" style="padding:0;font-size:12px;color:{ui.MUTED};">'
-        f'<span class="ui-dot" style="background:{ui.SOURCE_META.get(s, (s, ui.MUTED))[1]};"></span>{ui.SOURCE_META.get(s, (s, ui.MUTED))[0]}</div>'
-        for s in df["source"].value_counts().index[:5]
-    )
+                     f'<span class="ui-year-n">{ui.fmt_full(n)}</span></div>'
+                     f'<div class="ui-year-bar">{seg}</div>'
+                     f'<div class="ui-year-src">{breakdown}</div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">Coverage by Year ({years[0]}–{years[-1]})</div>'
-            f'<div class="ui-card-sub">Reviews per year and their source mix.</div>'
-            f'<div class="ui-g4">{"".join(cards)}</div>'
-            f'<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;">{legend}</div></div>')
+            f'<div class="ui-card-sub">Reviews per year and their source mix. Bars use a minimum width so smaller '
+            f'sources stay visible next to Play Store\'s volume — exact counts are listed under each year.</div>'
+            f'<div class="ui-g4">{"".join(cards)}</div></div>')
 
 
 def _recent(df):

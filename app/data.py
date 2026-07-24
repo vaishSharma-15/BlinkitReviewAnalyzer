@@ -47,7 +47,11 @@ def load_enriched_df() -> pd.DataFrame:
             })
     df = pd.DataFrame(rows)
     if not df.empty:
-        df["date_parsed"] = pd.to_datetime(df["date"], errors="coerce", utc=True)
+        # format="ISO8601" so dates both with and without fractional seconds parse — the
+        # scrapers emit both (Play/App Store without microseconds, YouTube/Q-Comm with),
+        # and the default inferrer silently coerced the microsecond ones to NaT, which
+        # dropped every YouTube/Q-Comm review out of the date-based coverage chart.
+        df["date_parsed"] = pd.to_datetime(df["date"], errors="coerce", utc=True, format="ISO8601")
     return df
 
 
