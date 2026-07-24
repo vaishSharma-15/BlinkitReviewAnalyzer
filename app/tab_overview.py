@@ -43,10 +43,11 @@ def render():
 def _sources(df):
     counts = df["source"].value_counts()
     cards = []
-    for src in counts.index[:4]:
+    for src in counts.index:  # every source with data, not just the top 4
         name, color = ui.SOURCE_META.get(src, (src.title(), ui.MUTED))
         sub = df[df["source"] == src]
-        if src in ("play", "appstore") and sub["rating"].notna().any():
+        # Store/product sources carry star ratings; social sources (YouTube/Q-Comm) don't.
+        if src in ("play", "appstore", "product_review") and sub["rating"].notna().any():
             metric = f"{sub['rating'].dropna().mean():.1f}★ avg rating"
         else:
             metric = f"{round((sub['sentiment'].mean()+1)/2*100)}/100 sentiment"
@@ -54,7 +55,8 @@ def _sources(df):
                      f'<div class="ui-src-name">{name}</div>'
                      f'<div class="ui-src-count">{ui.fmt_full(len(sub))}</div>'
                      f'<div class="ui-src-metric">{metric}</div></div>')
-    return f'<div class="ui-label">Sources Analyzed</div><div class="ui-g4">{"".join(cards)}</div>'
+    grid = "ui-g5" if len(cards) == 5 else "ui-g4"
+    return f'<div class="ui-label">Sources Analyzed</div><div class="{grid}">{"".join(cards)}</div>'
 
 
 def _stat(icon_name, label, value, sub):
