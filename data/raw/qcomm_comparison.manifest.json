@@ -1,6 +1,6 @@
 {
   "source": "qcomm_comparison",
-  "run_at": "2026-07-21T20:35:57.472847+00:00",
+  "run_at": "2026-07-24T01:02:07.530986+00:00",
   "config": {
     "search_terms": [
       "blinkit vs zepto",
@@ -16,15 +16,17 @@
       "blinkit vs zepto",
       "blinkit vs instamart",
       "blinkit vs zepto vs instamart",
-      "which quick commerce app is best"
+      "which quick commerce app is best",
+      "blinkit vs zepto 2025",
+      "quick commerce comparison india"
     ],
-    "youtube_max_videos_per_term": 15,
-    "youtube_max_comments_per_video": 100
+    "youtube_max_videos_per_term": 25,
+    "youtube_max_comments_per_video": 150
   },
-  "fetched": 1267,
-  "written": 1267,
-  "total_in_file": 1267,
-  "cutoff": "2024-07-31T20:33:32.540003+00:00",
+  "fetched": 3216,
+  "written": 1993,
+  "total_in_file": 3260,
+  "cutoff": "2024-08-03T00:56:45.226265+00:00",
   "reddit_blocked": true,
   "note": "Reddit half requires REDDIT_CLIENT_ID/SECRET; YouTube half uses yt-dlp + youtube-comment-downloader (no key required)."
 }

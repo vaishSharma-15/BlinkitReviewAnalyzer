@@ -1,6 +1,6 @@
 {
   "source": "product_review",
-  "run_at": "2026-07-21T20:17:09.125540+00:00",
+  "run_at": "2026-07-24T00:56:47.667366+00:00",
   "config": {
     "skus": [
       {
@@ -28,7 +28,7 @@
   },
   "fetched": 39,
   "written": 39,
-  "total_in_file": 49,
-  "cutoff": "2024-07-31T20:16:53.944107+00:00",
+  "total_in_file": 88,
+  "cutoff": "2024-08-03T00:56:32.708881+00:00",
   "note": "Blinkit PDP reviews are not publicly scrapable without an authenticated session; records fall back to Amazon India / Nykaa and are tagged meta.vendor + meta.is_proxy_source honestly."
 }

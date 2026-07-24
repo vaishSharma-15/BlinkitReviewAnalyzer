@@ -1,5 +1,5 @@
 {
-  "n_evidence": 3950,
+  "n_evidence": 4110,
   "n_themes": 9,
   "embed_model": "BAAI/bge-small-en-v1.5",
   "index_dir": "/Users/vaish/Documents/ClaudeCode/Blinkit_ReviewDiscoveryEngine/data/index/lancedb"

@@ -36,8 +36,12 @@ youtube:
     - "blinkit haul"
     - "blinkit unboxing"
     - "blinkit review"
-  max_videos_per_term: 15
-  max_comments_per_video: 100
+    - "blinkit 2024"
+    - "blinkit 2025"
+    - "blinkit grocery"
+    - "blinkit experience"
+  max_videos_per_term: 25
+  max_comments_per_video: 150
 
 forums:
   sites:
@@ -78,5 +82,7 @@ qcomm_discussions:
     - "blinkit vs instamart"
     - "blinkit vs zepto vs instamart"
     - "which quick commerce app is best"
-  youtube_max_videos_per_term: 15
-  youtube_max_comments_per_video: 100
+    - "blinkit vs zepto 2025"
+    - "quick commerce comparison india"
+  youtube_max_videos_per_term: 25
+  youtube_max_comments_per_video: 150

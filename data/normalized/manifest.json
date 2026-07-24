@@ -1,23 +1,23 @@
 {
   "funnel": {
-    "raw": 36771,
-    "after_length_filter": 25155,
-    "after_spam_filter": 25078,
-    "after_exact_dedup": 23946,
-    "after_near_dedup": 23835
+    "raw": 41176,
+    "after_length_filter": 28949,
+    "after_spam_filter": 28868,
+    "after_exact_dedup": 26705,
+    "after_near_dedup": 26569
   },
   "language_breakdown": {
-    "en": 22222,
-    "hinglish": 1485,
-    "hi": 112,
-    "other": 16
+    "en": 24334,
+    "hinglish": 2047,
+    "hi": 167,
+    "other": 21
   },
   "source_breakdown": {
     "play": 20571,
-    "appstore": 358,
-    "youtube": 2332,
-    "product_review": 32,
-    "qcomm_comparison": 542
+    "appstore": 416,
+    "youtube": 4214,
+    "product_review": 54,
+    "qcomm_comparison": 1314
   },
   "min_length": 15,
   "near_dup_threshold": 0.95

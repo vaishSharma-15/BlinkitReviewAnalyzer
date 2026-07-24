@@ -1,7 +1,7 @@
 {
-  "total_records": 548,
-  "n_clusters": 4,
-  "n_noise": 283,
+  "total_records": 562,
+  "n_clusters": 5,
+  "n_noise": 369,
   "min_cluster_size": 10,
   "embed_model": "BAAI/bge-small-en-v1.5",
   "pca_components": 10
