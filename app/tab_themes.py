@@ -24,10 +24,10 @@ def render():
     themes = themes_df.sort_values("rank_score", ascending=False).to_dict("records")
     total_corpus = sum(t["size"] for t in themes) or 1
 
-    ui.flush(ui.hero("🧭", "Theme Intelligence", "Discovery Themes & User Voice",
+    ui.flush(ui.hero("layers", "Theme Intelligence", "Discovery Themes & User Voice",
                      "Every category barrier, classified from an LLM's reading of the reviews — ranked by "
                      "mentions, with the real user quotes behind each one.",
-                     pill=f"● {ui.fmt(total_corpus)} reviews"))
+                     pill=f"{ui.fmt_full(total_corpus)} reviews"))
 
     parts = [_summary_chips(themes), _rq_strip(), '<div class="ui-label">All Themes</div>', '<div class="ui-g2">']
     for i, t in enumerate(themes):
@@ -46,20 +46,22 @@ def _summary_chips(themes):
     most_pos = max(themes, key=lambda t: t["avg_sentiment"])
     total = sum(t["size"] for t in themes) or 1
 
-    def chip(eyebrow, right, name, sub, border, bg, ecol):
+    def chip(icon_name, eyebrow, right, name, sub, border, bg, ecol):
         return (f'<div class="ui-summary" style="border-color:{border};background:{bg};">'
-                f'<div class="ui-summary-eyebrow" style="color:{ecol};"><span>{eyebrow}</span><span>{right}</span></div>'
+                f'<div class="ui-summary-eyebrow" style="color:{ecol};">'
+                f'<span style="display:inline-flex;align-items:center;gap:6px;">{ui.icon(icon_name, size=14, color=ecol)}{eyebrow}</span>'
+                f'<span>{right}</span></div>'
                 f'<div class="ui-summary-title">{ui.esc(name)}</div>'
                 f'<div class="ui-summary-sub">{sub}</div></div>')
 
     chips = [
-        chip("🔥 Most Mentioned", f"{ui.fmt(most_mentioned['size'])} reviews",
+        chip("flame", "Most Mentioned", f"{ui.fmt_full(most_mentioned['size'])} reviews",
              ui.THEME_META.get(most_mentioned["theme_id"], (most_mentioned["name"], ""))[0],
              f"{most_mentioned['size']/total:.1%} of themed feedback", ui.YELLOW, ui.YELLOW_SOFT, ui.YELLOW_DK),
-        chip("😞 Most Negative", f"{_sent100(most_neg['avg_sentiment'])}/100",
+        chip("frown", "Most Negative", f"{_sent100(most_neg['avg_sentiment'])}/100",
              ui.THEME_META.get(most_neg["theme_id"], (most_neg["name"], ""))[0],
              "The most painful theme", ui.NEG, "#fef2f4", ui.NEG),
-        chip("😊 Most Positive", f"{_sent100(most_pos['avg_sentiment'])}/100",
+        chip("smile", "Most Positive", f"{_sent100(most_pos['avg_sentiment'])}/100",
              ui.THEME_META.get(most_pos["theme_id"], (most_pos["name"], ""))[0],
              "What users are happiest about", ui.POS, "#f0fdf4", ui.POS),
     ]
@@ -104,7 +106,9 @@ def _theme_card(t, i, total_corpus):
             f'<div class="ui-quote-src">— {ui.SOURCE_META.get(q.get("source",""), (q.get("source",""), ""))[0]}</div></div>'
             for q in reps
         )
-        quotes = (f'<details class="ui-quotes"><summary>💬 Show {len(reps)} user quotes</summary>{qhtml}</details>')
+        summary_icon = ui.icon("message", size=13, color=ui.MUTED)
+        quotes = (f'<details class="ui-quotes"><summary><span style="display:inline-flex;align-items:center;gap:6px;">'
+                  f'{summary_icon}Show {len(reps)} user quotes</span></summary>{qhtml}</details>')
 
     conf = t.get("confidence", "")
     conf_badge = ""
@@ -121,7 +125,7 @@ def _theme_card(t, i, total_corpus):
             f'<span>Average Sentiment</span><span style="color:{scol};">{s100}/100</span></div>'
             f'<div class="ui-sentbar-track"><span class="ui-sentbar-mark" style="left:{s100}%;"></span></div>'
             f'<div class="ui-theme-stats">'
-            f'<div class="ui-theme-stat"><div class="ui-theme-stat-v">{ui.fmt(t["size"])}</div><div class="ui-theme-stat-l">Mentions</div></div>'
+            f'<div class="ui-theme-stat"><div class="ui-theme-stat-v">{ui.fmt_full(t["size"])}</div><div class="ui-theme-stat-l">Mentions</div></div>'
             f'<div class="ui-theme-stat"><div class="ui-theme-stat-v">{prevalence:.1%}</div><div class="ui-theme-stat-l">Of Reviews</div></div>'
             f'</div>'
             f'<div style="margin-top:12px;color:{ui.MUTED};font-size:12px;">'

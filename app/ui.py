@@ -69,12 +69,52 @@ THEME_META = {
 }
 
 
+# --- Inline SVG icon set (Lucide-style, stroke-based) ----------------------
+# Emoji were replaced with these so the chrome reads as a designed product, not a
+# document. icon(name) returns a single-line <svg> safe to embed inside flush()ed HTML.
+ICONS = {
+    "grid": '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+    "bar-chart": '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+    "layers": '<path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/>',
+    "message": '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    "file-text": '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+    "compass": '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+    "star": '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    "smile": '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+    "frown": '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+    "meh": '<circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+    "pie": '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+    "filter": '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
+    "alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    "search": '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    "sparkles": '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+    "flame": '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/>',
+    "user": '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    "tag": '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1"/>',
+    "heart": '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/>',
+    "pin": '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+    "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    "send": '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+}
+
+
+def icon(name: str, size: int = 20, color: str = "currentColor", stroke: float = 2) -> str:
+    body = ICONS.get(name, "")
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" '
+            f'stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round" style="display:block;">{body}</svg>')
+
+
 def esc(s) -> str:
     return _html.escape(str(s))
 
 
 def fmt(n: int) -> str:
     return f"{n/1000:.1f}k" if n >= 1000 else str(int(n))
+
+
+def fmt_full(n: int) -> str:
+    return f"{int(n):,}"
 
 
 def flush(parts):
@@ -96,11 +136,11 @@ def sentiment_label(score: float) -> str:
     return "Positive" if score > 0.2 else ("Negative" if score < -0.2 else "Neutral")
 
 
-def hero(icon: str, eyebrow: str, title: str, sub: str, pill: str = None) -> str:
+def hero(icon_name: str, eyebrow: str, title: str, sub: str, pill: str = None) -> str:
     pill_html = f'<div class="ui-hero-pill">{esc(pill)}</div>' if pill else ""
     return f"""
     <div class="ui-hero">
-      <div class="ui-hero-icon">{icon}</div>
+      <div class="ui-hero-icon">{icon(icon_name, size=24, color="#191c1e")}</div>
       <div class="ui-hero-text">
         <div class="ui-eyebrow">{esc(eyebrow)}</div>
         <div class="ui-hero-title">{esc(title)}</div>
@@ -115,19 +155,21 @@ def inject_ui():
 
 
 _UI_CSS = f"""<style>
+/* Trim Streamlit's tall default top padding so the hero sits near the top. */
+.block-container, [data-testid="stMainBlockContainer"] {{ padding-top:2.2rem !important; padding-bottom:3rem !important; }}
 .ui-wrap {{ font-family:'Inter',sans-serif; }}
 .ui-wrap * {{ box-sizing:border-box; }}
-.ui-label {{ color:{FAINT}; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin:22px 2px 12px; }}
+.ui-label {{ color:{FAINT}; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin:20px 2px 11px; }}
 .ui-dot {{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:8px; vertical-align:middle; }}
 .ui-muted {{ color:{MUTED}; font-size:13px; }}
 
-/* Hero banner */
-.ui-hero {{ background:{CARD}; border:1px solid {BORDER}; border-radius:16px; padding:24px 26px; display:flex; align-items:flex-start; gap:18px; position:relative; box-shadow:0 1px 2px rgba(16,24,40,0.04); }}
-.ui-hero-icon {{ width:52px; height:52px; border-radius:13px; background:{YELLOW}; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; }}
-.ui-eyebrow {{ color:{YELLOW_DK}; font-size:11px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; }}
-.ui-hero-title {{ color:{TXT}; font-size:29px; font-weight:800; letter-spacing:-0.02em; margin:4px 0 6px; }}
-.ui-hero-sub {{ color:{MUTED}; font-size:14px; max-width:660px; line-height:1.55; }}
-.ui-hero-pill {{ position:absolute; top:24px; right:26px; background:{YELLOW_SOFT}; color:{YELLOW_DK}; border:1px solid {YELLOW}; border-radius:9999px; padding:6px 14px; font-size:12px; font-weight:800; white-space:nowrap; }}
+/* Hero banner — compact */
+.ui-hero {{ background:{CARD}; border:1px solid {BORDER}; border-radius:14px; padding:16px 20px; display:flex; align-items:center; gap:15px; position:relative; box-shadow:0 1px 2px rgba(16,24,40,0.04); }}
+.ui-hero-icon {{ width:42px; height:42px; border-radius:11px; background:{YELLOW}; display:flex; align-items:center; justify-content:center; flex-shrink:0; }}
+.ui-eyebrow {{ color:{YELLOW_DK}; font-size:10px; font-weight:800; letter-spacing:0.13em; text-transform:uppercase; }}
+.ui-hero-title {{ color:{TXT}; font-size:23px; font-weight:800; letter-spacing:-0.02em; margin:2px 0 3px; line-height:1.15; }}
+.ui-hero-sub {{ color:{MUTED}; font-size:13px; max-width:680px; line-height:1.5; }}
+.ui-hero-pill {{ position:absolute; top:16px; right:20px; background:{YELLOW_SOFT}; color:{YELLOW_DK}; border:1px solid {YELLOW}; border-radius:9999px; padding:5px 13px; font-size:12px; font-weight:800; white-space:nowrap; }}
 
 /* Grids */
 .ui-g2 {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }}
@@ -250,4 +292,27 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
 .ui-year-head {{ display:flex; justify-content:space-between; color:{TXT}; font-size:14px; font-weight:800; margin-bottom:9px; }}
 .ui-year-n {{ color:{MUTED}; font-weight:600; font-size:13px; }}
 .ui-year-bar {{ display:flex; height:7px; border-radius:4px; overflow:hidden; background:{PAGE}; }}
+
+/* Collection funnel */
+.ui-funnel {{ display:flex; flex-direction:column; gap:10px; }}
+.ui-funnel-row {{ display:grid; grid-template-columns:150px 1fr 150px; align-items:center; gap:14px; }}
+.ui-funnel-label {{ color:{TXT}; font-size:13px; font-weight:600; }}
+.ui-funnel-track {{ height:26px; background:{CARD2}; border-radius:6px; overflow:hidden; }}
+.ui-funnel-fill {{ height:26px; border-radius:6px; display:flex; align-items:center; padding-left:12px; color:#fff; font-size:12px; font-weight:700; }}
+.ui-funnel-meta {{ color:{MUTED}; font-size:12px; }}
+.ui-funnel-meta b {{ color:{TXT}; font-size:14px; }}
+
+/* Chat bubbles */
+.ui-chat-q {{ display:flex; justify-content:flex-end; gap:10px; margin:18px 0 8px; }}
+.ui-chat-q-bubble {{ background:{YELLOW}; color:#191c1e; border-radius:14px 14px 4px 14px; padding:10px 15px; font-size:14px; font-weight:600; max-width:70%; line-height:1.45; }}
+.ui-chat-avatar {{ width:32px; height:32px; border-radius:9px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }}
+.ui-chat-avatar.q {{ background:{YELLOW}; }}
+.ui-chat-avatar.a {{ background:{TXT}; }}
+.ui-chat-a {{ display:flex; justify-content:flex-start; gap:10px; margin:8px 0 6px; }}
+.ui-chat-a-body {{ flex:1; max-width:88%; }}
+
+/* Clickable citation link */
+.ui-cite {{ color:{YELLOW_DK}; font-size:11px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }}
+.ui-cite:hover {{ text-decoration:underline; }}
+.ui-secline {{ color:{FAINT}; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; margin:16px 0 8px; display:flex; align-items:center; gap:6px; }}
 </style>"""

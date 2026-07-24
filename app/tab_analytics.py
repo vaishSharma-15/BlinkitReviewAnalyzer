@@ -16,9 +16,10 @@ def render():
         st.warning("No enriched data yet — run `python -m src.enrich` first.")
         return
 
-    ui.flush(ui.hero("📈", "Analytics Dashboard", "Deep Discovery Analytics",
+    ui.flush(ui.hero("bar-chart", "Analytics Dashboard", "Deep Discovery Analytics",
                      "Sentiment, barriers and complaint rates from LLM-classified reviews. Filter by keyword, "
-                     "source or sentiment — every panel updates together."))
+                     "source or sentiment — every panel updates together.",
+                     pill=f"{ui.fmt_full(len(df))} reviews"))
 
     # --- Filter bar (real Streamlit widgets, styled compact) ----------------
     c1, c2, c3 = st.columns([3, 1, 1])
@@ -57,13 +58,13 @@ def render():
     parts = [
         '<div class="ui-label">How Users Feel</div>',
         '<div class="ui-g3">',
-        _feel_tile("🙂", "Positive", pos, ui.POS), _feel_tile("😐", "Neutral", neu, ui.NEU), _feel_tile("🙁", "Negative", neg, ui.NEG),
+        _feel_tile("smile", "Positive", pos, ui.POS), _feel_tile("meh", "Neutral", neu, ui.NEU), _feel_tile("frown", "Negative", neg, ui.NEG),
         "</div>",
         '<div class="ui-label">Barrier Load</div>',
         '<div class="ui-g3">',
-        _stat_tile("🧭", "Reviews With A Barrier", f"{barrier_share:.0%}", "share flagged with a barrier type", ui.CAT[0]),
-        _stat_tile("⚠️", "Negative Barrier Reviews", f"{neg_barrier:.0%}", "barrier + negative sentiment", ui.NEG),
-        _stat_tile("📊", "Sentiment Score", str(sent_score), "0–100 overall mood in view", ui.GREEN),
+        _stat_tile("compass", "Reviews With A Barrier", f"{barrier_share:.0%}", "share flagged with a barrier type", ui.CAT[0]),
+        _stat_tile("alert", "Negative Barrier Reviews", f"{neg_barrier:.0%}", "barrier + negative sentiment", ui.NEG),
+        _stat_tile("bar-chart", "Sentiment Score", str(sent_score), "0–100 overall mood in view", ui.GREEN),
         "</div>",
         '<div class="ui-row ui-split">', _donut(pos, neu, neg, len(view)), _theme_lolli(view), "</div>",
         '<div class="ui-row ui-split">', _source_bars(view), _rating_bars(view), "</div>",
@@ -72,16 +73,16 @@ def render():
     ui.flush(parts)
 
 
-def _feel_tile(icon, label, val, color):
+def _feel_tile(icon_name, label, val, color):
     return (f'<div class="ui-stat big" style="border-top-color:{color};">'
-            f'<div class="ui-stat-top"><div class="ui-stat-icon" style="background:{color}18;">{icon}</div>'
+            f'<div class="ui-stat-top"><div class="ui-stat-icon" style="background:{color}18;">{ui.icon(icon_name, size=17, color=color)}</div>'
             f'<div><div class="ui-stat-label">{label}</div><div class="ui-stat-sub">of reviews in view</div></div></div>'
             f'<div class="ui-stat-value" style="color:{color};">{val:.0%}</div></div>')
 
 
-def _stat_tile(icon, label, val, sub, color):
+def _stat_tile(icon_name, label, val, sub, color):
     return (f'<div class="ui-stat big" style="border-top-color:{color};">'
-            f'<div class="ui-stat-top"><div class="ui-stat-icon" style="background:{color}18;">{icon}</div>'
+            f'<div class="ui-stat-top"><div class="ui-stat-icon" style="background:{color}18;">{ui.icon(icon_name, size=17, color=color)}</div>'
             f'<div><div class="ui-stat-label">{label}</div><div class="ui-stat-sub">{sub}</div></div></div>'
             f'<div class="ui-stat-value">{val}</div></div>')
 
@@ -90,7 +91,7 @@ def _donut(pos, neu, neg, n):
     p, nu, ng = pos * 100, neu * 100, neg * 100
     a1, a2 = p, p + nu
     return (f'<div class="ui-card"><div class="ui-card-title">Sentiment Distribution</div>'
-            f'<div class="ui-card-sub">Share of the current selection ({ui.fmt(n)} reviews)</div><div class="ui-donut-wrap">'
+            f'<div class="ui-card-sub">Share of the current selection ({ui.fmt_full(n)} reviews)</div><div class="ui-donut-wrap">'
             f'<div class="ui-donut" style="background:conic-gradient({ui.POS} 0% {a1:.1f}%,{ui.NEU} {a1:.1f}% {a2:.1f}%,{ui.NEG} {a2:.1f}% 100%);">'
             f'<div class="ui-donut-hole"><div class="ui-donut-big" style="color:{ui.POS};">{p:.0f}%</div>'
             f'<div class="ui-donut-lbl">Positive</div></div></div>'
@@ -113,7 +114,7 @@ def _theme_lolli(view):
                     f'<span class="ui-dot" style="background:{color};"></span>{name}</div>'
                     f'<div class="ui-lolli-track"><div class="ui-lolli-fill" style="width:{pct:.0f}%;background:{color};"></div>'
                     f'<span class="ui-lolli-knob" style="left:{pct:.0f}%;border-color:{color};"></span></div>'
-                    f'<div class="ui-lolli-val">{ui.fmt(cnt)}</div></div>')
+                    f'<div class="ui-lolli-val">{ui.fmt_full(cnt)}</div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">Themes</div>'
             f'<div class="ui-card-sub">Reviews per theme in the current view</div>{"".join(rows)}</div>')
 
@@ -127,7 +128,7 @@ def _source_bars(view):
         pct = c / top * 100
         rows.append(f'<div class="ui-bar"><div class="ui-bar-label">{name}</div>'
                     f'<div class="ui-bar-track"><div class="ui-bar-fill" style="width:{pct:.0f}%;background:{color};"></div></div>'
-                    f'<div class="ui-bar-val">{ui.fmt(c)}</div></div>')
+                    f'<div class="ui-bar-val">{ui.fmt_full(c)}</div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">Source Breakdown</div>'
             f'<div class="ui-card-sub">Reviews per channel</div>{"".join(rows)}</div>')
 
@@ -143,7 +144,7 @@ def _rating_bars(view):
     for star in [1, 2, 3, 4, 5]:
         c = int(counts.get(star, 0))
         h = (c / top * 100) if top else 0
-        bars.append(f'<div class="ui-vbar"><div class="ui-vbar-n">{ui.fmt(c) if c else ""}</div>'
+        bars.append(f'<div class="ui-vbar"><div class="ui-vbar-n">{ui.fmt_full(c) if c else ""}</div>'
                     f'<div class="ui-vbar-fill" style="height:{h:.0f}%;background:{rat_colors[star]};"></div>'
                     f'<div class="ui-vbar-x">{star}★</div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">Rating Distribution</div>'
@@ -151,34 +152,36 @@ def _rating_bars(view):
             f'<div class="ui-vbars">{"".join(bars)}</div></div>')
 
 
+SEG_ICON = {"price_sensitivity": "tag", "family_stage": "users", "has_pet": "heart", "city_tier": "pin"}
+SEG_LABELS = {
+    "price_sensitivity=high": "Price-Sensitive", "price_sensitivity=low": "Price-Insensitive",
+    "family_stage=parent_young_child": "Parents", "family_stage=single": "Singles",
+    "family_stage=couple": "Couples", "has_pet=yes": "Pet Owners",
+    "city_tier=metro": "Metro", "city_tier=tier2": "Tier-2 City",
+}
+
+
 def _segments(view):
-    seg_cols = ["price_sensitivity", "family_stage", "has_pet", "city_tier"]
-    labels = {
-        "price_sensitivity=high": ("Price-Sensitive", "💰"), "price_sensitivity=low": ("Price-Insensitive", "💳"),
-        "family_stage=parent_young_child": ("Parents", "🍼"), "family_stage=single": ("Singles", "🧍"),
-        "family_stage=couple": ("Couples", "👥"), "has_pet=yes": ("Pet Owners", "🐾"),
-        "city_tier=metro": ("Metro", "🏙️"), "city_tier=tier2": ("Tier-2 City", "🏘️"),
-    }
     rows = []
-    for col in seg_cols:
+    for col in ["price_sensitivity", "family_stage", "has_pet", "city_tier"]:
         known = view[view[col] != "unknown"]
         for value, grp in known.groupby(col):
             if len(grp) < 10:
                 continue
-            label, icon = labels.get(f"{col}={value}", (f"{col}={value}", "•"))
-            rows.append(((grp["sentiment"] < -0.2).mean(), len(grp), label, icon))
+            label = SEG_LABELS.get(f"{col}={value}", f"{col}={value}")
+            rows.append(((grp["sentiment"] < -0.2).mean(), len(grp), label, SEG_ICON.get(col, "user")))
     rows.sort(key=lambda r: (-r[0], -r[1]))
     rows = rows[:4]
     if not rows:
         return '<div class="ui-card"><div class="ui-card-title">User Segments</div><div class="ui-muted">No segment signals in view (segment fields are sparse in review text).</div></div>'
     cards = []
     colors = [ui.NEG, "#f97316", ui.NEU, ui.GREEN]
-    for i, (rate, n, label, icon) in enumerate(rows):
+    for i, (rate, n, label, ic) in enumerate(rows):
         cards.append(f'<div class="ui-segcard"><div class="ui-segcard-rank">#{i+1}</div>'
-                     f'<div class="ui-segcard-icon">{icon}</div>'
+                     f'<div class="ui-segcard-icon">{ui.icon(ic, size=15, color=ui.YELLOW_DK)}</div>'
                      f'<div class="ui-segcard-pct" style="color:{colors[i]};">{rate:.0%}</div>'
                      f'<div class="ui-segcard-name">{label}</div>'
-                     f'<div class="ui-segcard-sub">{ui.fmt(n)} reviews · negative rate</div></div>')
+                     f'<div class="ui-segcard-sub">{ui.fmt_full(n)} reviews · negative rate</div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">User Segments</div>'
             f'<div class="ui-card-sub">Negative-sentiment rate by segment — who is most frustrated</div>'
             f'<div class="ui-g4">{"".join(cards)}</div></div>')

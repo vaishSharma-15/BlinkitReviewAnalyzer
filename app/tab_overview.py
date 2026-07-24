@@ -1,13 +1,11 @@
-"""Overview tab: a light 'Discovery Health Overview' dashboard in the Blinkit palette,
-modelled on the spotify-discovery-intel reference layout. Every figure is computed from
-the real enriched corpus via app.ui helpers; the whole page is one HTML flush so the
-grid alignment is exact.
+"""Overview tab: a light 'Discovery Health Overview' dashboard in the Blinkit palette.
+Every figure is computed from the real enriched corpus via app.ui helpers; the whole page
+is one HTML flush so grid alignment is exact.
 """
-import pandas as pd
 import streamlit as st
 
 from app import ui
-from app.data import load_enriched_df, load_themes_df
+from app.data import load_enriched_df, load_funnel
 
 
 def render():
@@ -24,14 +22,16 @@ def render():
     pos = (df["sentiment"] > 0.2).mean()
     neu = df["sentiment"].between(-0.2, 0.2).mean()
     neg = (df["sentiment"] < -0.2).mean()
-    classified = int((df["theme_id"] != "unclassified").sum()) if "theme_id" in df.columns else total
+    classified = int((df["theme_id"] != "unclassified").sum())
 
     parts = [
-        ui.hero("🔍", "Reviews Dashboard", "Discovery Health Overview",
-                "Why Blinkit users stay inside familiar shopping categories — every label read by an LLM, not keywords.",
-                pill=f"● {ui.fmt(total)} reviews analyzed"),
+        ui.hero("grid", "Blinkit · Voice of Customer", "Discovery Health Overview",
+                f"What real Blinkit reviewers reveal about why shoppers stay inside a few familiar "
+                f"categories — {ui.fmt_full(total)} public reviews, each classified by an LLM, not keyword rules.",
+                pill=f"{ui.fmt_full(total)} reviews analyzed"),
         _sources(df),
         _kpis(total, n_sources, classified, avg_rating, sent_score, pos),
+        '<div class="ui-row">', _funnel(df, total, classified), "</div>",
         '<div class="ui-row ui-split">', _struggles(df), _concentration(df), "</div>",
         '<div class="ui-row ui-split">', _segments(df), _donut(pos, neu, neg), "</div>",
         '<div class="ui-row">', _coverage(df), "</div>",
@@ -52,27 +52,50 @@ def _sources(df):
             metric = f"{round((sub['sentiment'].mean()+1)/2*100)}/100 sentiment"
         cards.append(f'<div class="ui-src" style="border-top:3px solid {color};">'
                      f'<div class="ui-src-name">{name}</div>'
-                     f'<div class="ui-src-count">{ui.fmt(len(sub))}</div>'
+                     f'<div class="ui-src-count">{ui.fmt_full(len(sub))}</div>'
                      f'<div class="ui-src-metric">{metric}</div></div>')
     return f'<div class="ui-label">Sources Analyzed</div><div class="ui-g4">{"".join(cards)}</div>'
 
 
+def _stat(icon_name, label, value, sub):
+    return (f'<div class="ui-stat"><div class="ui-stat-icon">{ui.icon(icon_name, size=17, color=ui.YELLOW_DK)}</div>'
+            f'<div class="ui-stat-body"><div class="ui-stat-label">{label}</div>'
+            f'<div class="ui-stat-sub">{sub}</div></div>'
+            f'<div class="ui-stat-value">{value}</div></div>')
+
+
 def _kpis(total, n_sources, classified, avg_rating, sent_score, pos):
     tiles = [
-        ("📝", "Total Reviews", ui.fmt(total), f"Across {n_sources} sources"),
-        ("🧭", "Themed Reviews", ui.fmt(classified), f"{classified/total:.0%} fit a theme"),
-        ("⭐", "Avg Rating", f"{avg_rating:.2f}", "Store ratings (1–5★)"),
-        ("🙂", "Sentiment Score", str(sent_score), "0–100 overall mood"),
-        ("📊", "Positive Share", f"{pos:.0%}", "of all reviews"),
+        _stat("file-text", "Total Reviews", ui.fmt_full(total), f"Across {n_sources} sources"),
+        _stat("compass", "Themed Reviews", ui.fmt_full(classified), f"{classified/total:.0%} fit a theme"),
+        _stat("star", "Avg Rating", f"{avg_rating:.2f}", "Store ratings (1–5★)"),
+        _stat("smile", "Sentiment Score", str(sent_score), "0–100 overall mood"),
+        _stat("pie", "Positive Share", f"{pos:.0%}", "of all reviews"),
     ]
-    cells = "".join(
-        f'<div class="ui-stat"><div class="ui-stat-icon">{i}</div>'
-        f'<div class="ui-stat-body"><div class="ui-stat-label">{l}</div>'
-        f'<div class="ui-stat-sub">{s}</div></div>'
-        f'<div class="ui-stat-value">{v}</div></div>'
-        for i, l, v, s in tiles
-    )
-    return f'<div class="ui-g5 ui-row">{cells}</div>'
+    return f'<div class="ui-g5 ui-row">{"".join(tiles)}</div>'
+
+
+def _funnel(df, total, classified):
+    f = load_funnel()
+    fn = f.get("normalized", {}).get("funnel", {})
+    raw = fn.get("raw") or total
+    cleaned = fn.get("after_near_dedup") or total
+    steps = [
+        ("Collected", raw, "#334155", "raw public reviews pulled from all sources"),
+        ("Cleaned & deduped", cleaned, "#0ea5e9", "after length, spam and near-duplicate filters"),
+        ("Relevant to research", total, "#d97706", "kept by the LLM relevance gate"),
+        ("Classified into themes", classified, ui.GREEN, "assigned one of the 9 discovery themes"),
+    ]
+    rows = []
+    for label, count, color, desc in steps:
+        pct = count / raw * 100 if raw else 0
+        rows.append(f'<div class="ui-funnel-row"><div class="ui-funnel-label">{label}</div>'
+                    f'<div class="ui-funnel-track"><div class="ui-funnel-fill" style="width:{max(pct,3):.1f}%;background:{color};"></div></div>'
+                    f'<div class="ui-funnel-meta"><b>{ui.fmt_full(count)}</b> · {pct:.0f}% of collected<br>'
+                    f'<span style="font-size:11px;">{desc}</span></div></div>')
+    return (f'<div class="ui-card"><div class="ui-card-title">Collection Funnel</div>'
+            f'<div class="ui-card-sub">From everything scraped down to the themed corpus this dashboard runs on.</div>'
+            f'<div class="ui-funnel">{"".join(rows)}</div></div>')
 
 
 def _struggles(df):
@@ -90,9 +113,9 @@ def _struggles(df):
                     f'<span class="ui-dot" style="background:{color};"></span>{label}</div>'
                     f'<div class="ui-lolli-track"><div class="ui-lolli-fill" style="width:{pct:.0f}%;background:{color};"></div>'
                     f'<span class="ui-lolli-knob" style="left:{pct:.0f}%;border-color:{color};"></span></div>'
-                    f'<div class="ui-lolli-val">{ui.fmt(cnt)}</div></div>')
+                    f'<div class="ui-lolli-val">{ui.fmt_full(cnt)}</div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">What Users Struggle With</div>'
-            f'<div class="ui-card-sub">Barrier mentions by frequency, across {ui.fmt(len(themed))} of {ui.fmt(len(df))} reviews.</div>'
+            f'<div class="ui-card-sub">Barrier mentions by frequency, across {ui.fmt_full(len(themed))} of {ui.fmt_full(len(df))} reviews.</div>'
             f'{"".join(rows)}</div>')
 
 
@@ -119,31 +142,34 @@ def _concentration(df):
             f'the single largest blocker to category exploration.</div></div>{"".join(bars)}</div>')
 
 
+SEG_ICON = {"price_sensitivity": "tag", "family_stage": "users", "has_pet": "heart", "city_tier": "pin"}
+SEG_LABELS = {
+    "price_sensitivity=high": "Price-Sensitive", "price_sensitivity=low": "Price-Insensitive",
+    "family_stage=parent_young_child": "Parents", "family_stage=single": "Singles",
+    "family_stage=couple": "Couples", "has_pet=yes": "Pet Owners",
+    "city_tier=metro": "Metro", "city_tier=tier2": "Tier-2 City",
+}
+
+
 def _segments(df):
-    seg_cols = ["price_sensitivity", "family_stage", "has_pet", "city_tier"]
-    labels = {
-        "price_sensitivity=high": ("Price-Sensitive", "💰"), "price_sensitivity=low": ("Price-Insensitive", "💳"),
-        "family_stage=parent_young_child": ("Parents", "🍼"), "family_stage=single": ("Singles", "🧍"),
-        "family_stage=couple": ("Couples", "👥"), "has_pet=yes": ("Pet Owners", "🐾"),
-        "city_tier=metro": ("Metro", "🏙️"), "city_tier=tier2": ("Tier-2 City", "🏘️"),
-    }
     rows = []
-    for col in seg_cols:
+    for col in ["price_sensitivity", "family_stage", "has_pet", "city_tier"]:
         known = df[df[col] != "unknown"]
         for value, grp in known.groupby(col):
             if len(grp) < 10:
                 continue
-            label, icon = labels.get(f"{col}={value}", (f"{col}={value}", "•"))
-            rows.append(((grp["sentiment"] < -0.2).mean(), len(grp), label, icon))
+            label = SEG_LABELS.get(f"{col}={value}", f"{col}={value}")
+            rows.append(((grp["sentiment"] < -0.2).mean(), len(grp), label, SEG_ICON.get(col, "user")))
     rows.sort(key=lambda r: (-r[0], -r[1]))
     rows = rows[:5]
     if not rows:
         return '<div class="ui-card"><div class="ui-card-title">Who\'s Most Frustrated</div><div class="ui-muted">No segment signals detected in this corpus.</div></div>'
     body = "".join(
         f'<div class="ui-seg-row"><div class="ui-seg-rank">{i}</div>'
-        f'<div class="ui-seg-name">{icon}&nbsp;&nbsp;{label}</div>'
-        f'<div class="ui-seg-rate">{rate:.0%}</div><div class="ui-seg-n">{ui.fmt(n)}</div></div>'
-        for i, (rate, n, label, icon) in enumerate(rows, start=1)
+        f'<div class="ui-seg-name" style="display:flex;align-items:center;gap:8px;">'
+        f'<span style="color:{ui.FAINT};">{ui.icon(ic, size=15, color=ui.MUTED)}</span>{label}</div>'
+        f'<div class="ui-seg-rate">{rate:.0%}</div><div class="ui-seg-n">{ui.fmt_full(n)}</div></div>'
+        for i, (rate, n, label, ic) in enumerate(rows, start=1)
     )
     return (f'<div class="ui-card"><div class="ui-card-title">Who\'s Most Frustrated</div>'
             f'<div class="ui-card-sub">Negative-sentiment rate by user segment</div>'
@@ -178,7 +204,7 @@ def _coverage(df):
             for s, c in sub["source"].value_counts().items()
         )
         cards.append(f'<div class="ui-year"><div class="ui-year-head"><span>{y}</span>'
-                     f'<span class="ui-year-n">{ui.fmt(n)}</span></div><div class="ui-year-bar">{seg}</div></div>')
+                     f'<span class="ui-year-n">{ui.fmt_full(n)}</span></div><div class="ui-year-bar">{seg}</div></div>')
     legend = "".join(
         f'<div class="ui-leg" style="padding:0;font-size:12px;color:{ui.MUTED};">'
         f'<span class="ui-dot" style="background:{ui.SOURCE_META.get(s, (s, ui.MUTED))[1]};"></span>{ui.SOURCE_META.get(s, (s, ui.MUTED))[0]}</div>'
