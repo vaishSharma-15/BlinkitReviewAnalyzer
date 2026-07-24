@@ -194,7 +194,14 @@ def _coverage(df):
     if dated.empty:
         return ""
     dated["year"] = dated["date_parsed"].dt.year
-    years = sorted(dated["year"].unique())
+    # Drop years with too few reviews to be meaningful (e.g. 2024 with just 2) so the
+    # chart isn't padded with a near-empty bar. Threshold keeps any year with real volume.
+    MIN_YEAR_COUNT = 10
+    year_counts = dated["year"].value_counts()
+    years = sorted(y for y in dated["year"].unique() if year_counts[y] >= MIN_YEAR_COUNT)
+    if not years:
+        return ""
+    dated = dated[dated["year"].isin(years)]
     cards = []
     for y in years:
         sub = dated[dated["year"] == y]
