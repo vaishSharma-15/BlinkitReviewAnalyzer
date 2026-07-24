@@ -213,19 +213,22 @@ def _coverage(df):
             f'<div style="flex:{c} 1 0;min-width:8px;background:{ui.SOURCE_META.get(s, (s, ui.MUTED))[1]};"></div>'
             for s, c in vc.items()
         )
-        breakdown = "".join(
-            f'<span><span class="ui-dot" style="width:8px;height:8px;background:{ui.SOURCE_META.get(s, (s, ui.MUTED))[1]};"></span>'
-            f'{ui.SOURCE_META.get(s, (s, ui.MUTED))[0]}&nbsp;<b style="color:{ui.TXT};">{ui.fmt_full(c)}</b></span>'
-            for s, c in vc.items()
-        )
         cards.append(f'<div class="ui-year"><div class="ui-year-head"><span>{y}</span>'
                      f'<span class="ui-year-n">{ui.fmt_full(n)}</span></div>'
-                     f'<div class="ui-year-bar">{seg}</div>'
-                     f'<div class="ui-year-src">{breakdown}</div></div>')
+                     f'<div class="ui-year-bar">{seg}</div></div>')
+    # One shared colour key for all years (union of sources present), instead of repeating
+    # the source list inside each year card.
+    sources_present = dated["source"].value_counts().index
+    legend = "".join(
+        f'<div class="ui-leg" style="padding:0;font-size:12px;color:{ui.MUTED};">'
+        f'<span class="ui-dot" style="background:{ui.SOURCE_META.get(s, (s, ui.MUTED))[1]};"></span>{ui.SOURCE_META.get(s, (s, ui.MUTED))[0]}</div>'
+        for s in sources_present
+    )
     return (f'<div class="ui-card"><div class="ui-card-title">Coverage by Year ({years[0]}–{years[-1]})</div>'
             f'<div class="ui-card-sub">Reviews per year and their source mix. Bars use a minimum width so smaller '
-            f'sources stay visible next to Play Store\'s volume — exact counts are listed under each year.</div>'
-            f'<div class="ui-g4">{"".join(cards)}</div></div>')
+            f'sources stay visible next to Play Store\'s volume.</div>'
+            f'<div class="ui-g4">{"".join(cards)}</div>'
+            f'<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;">{legend}</div></div>')
 
 
 def _recent(df):
