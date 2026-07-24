@@ -68,7 +68,7 @@ def _stat(icon_name, label, value, sub):
 
 def _kpis(total, n_sources, classified, avg_rating, sent_score, pos):
     tiles = [
-        _stat("file-text", "Total Reviews", ui.fmt_full(total), f"Across {n_sources} sources"),
+        _stat("file-text", "Reviews Analyzed", ui.fmt_full(total), f"Total across {n_sources} sources"),
         _stat("compass", "Themed Reviews", ui.fmt_full(classified), f"{classified/total:.0%} fit a theme"),
         _stat("star", "Avg Rating", f"{avg_rating:.2f}", "Store ratings (1–5★)"),
         _stat("smile", "Sentiment Score", str(sent_score), "0–100 overall mood"),

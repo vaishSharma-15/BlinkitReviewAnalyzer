@@ -24,12 +24,13 @@ import streamlit as st
 # border is the literal #E2E8F0 hardcoded in the CSS, not the `outline-variant` token),
 # and the exported code is what actually rendered in the reference screenshots.
 BACKGROUND = "#f7f9fb"
-SIDEBAR_BG = "#1c1b1b"
+SIDEBAR_BG = "#ffffff"
 CARD_BG = "#ffffff"
 CARD_BORDER = "#E2E8F0"
 CARD_BORDER_HOVER = "#CBD5E1"
 PRIMARY_YELLOW = "#F9D507"
 PRIMARY_YELLOW_DIM = "#e6c500"
+PRIMARY_YELLOW_SOFT = "#fef6dc"
 ON_PRIMARY = "#191c1e"
 TEXT_MAIN = "#191c1e"
 TEXT_MUTED = "#5f5e5e"
@@ -64,15 +65,20 @@ def inject_theme():
         html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
         .stApp {{ background-color: {BACKGROUND}; }}
 
-        /* Sidebar: dark, yellow branding */
+        /* Sidebar: light, hairline divider from the main area */
         [data-testid="stSidebar"] {{
             background-color: {SIDEBAR_BG};
+            border-right: 1px solid {CARD_BORDER};
         }}
         [data-testid="stSidebar"] * {{
-            color: #e5e2e1 !important;
+            color: {TEXT_MAIN} !important;
+        }}
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * {{
+            color: {TEXT_MUTED} !important;
         }}
         [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
-            color: {PRIMARY_YELLOW} !important;
+            color: {TEXT_MAIN} !important;
         }}
 
         /* Tabs: underline style, yellow active indicator */
@@ -108,23 +114,23 @@ def inject_theme():
         Stitch design's "Active Tab" treatment, not a solid yellow button. */
         [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {{
             background-color: transparent;
-            color: #e5e2e1 !important;
+            color: #3f4753 !important;
             border: none;
-            border-radius: 0;
+            border-radius: 8px;
             text-align: left;
             justify-content: flex-start;
             font-weight: 500;
         }}
         [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {{
-            background-color: #2d2d2d;
-            color: {PRIMARY_YELLOW} !important;
+            background-color: #f1f3f5;
+            color: {TEXT_MAIN} !important;
         }}
         [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {{
-            background-color: #2d2d2d;
-            color: {PRIMARY_YELLOW} !important;
+            background-color: {PRIMARY_YELLOW_SOFT};
+            color: {TEXT_MAIN} !important;
             border: none;
             border-left: 3px solid {PRIMARY_YELLOW};
-            border-radius: 0;
+            border-radius: 8px;
             text-align: left;
             justify-content: flex-start;
             font-weight: 700;
