@@ -148,7 +148,7 @@ def _rating_bars(view):
                     f'<div class="ui-vbar-fill" style="height:{h:.0f}%;background:{rat_colors[star]};"></div>'
                     f'<div class="ui-vbar-x">{star}★</div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">Rating Distribution</div>'
-            f'<div class="ui-card-sub">Store ratings — Google Play + App Store (social sources have no star rating)</div>'
+            f'<div class="ui-card-sub">Store ratings — Play Store + App Store (social sources have no star rating)</div>'
             f'<div class="ui-vbars">{"".join(bars)}</div></div>')
 
 
