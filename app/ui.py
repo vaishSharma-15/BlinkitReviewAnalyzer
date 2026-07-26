@@ -168,7 +168,7 @@ _UI_CSS = f"""<style>
 .ui-hero-icon {{ width:42px; height:42px; border-radius:11px; background:{YELLOW}; display:flex; align-items:center; justify-content:center; flex-shrink:0; }}
 .ui-eyebrow {{ color:{YELLOW_DK}; font-size:10px; font-weight:800; letter-spacing:0.13em; text-transform:uppercase; }}
 .ui-hero-title {{ color:{TXT}; font-size:28px; font-weight:800; letter-spacing:-0.02em; margin:3px 0 5px; line-height:1.15; }}
-.ui-hero-sub {{ color:{MUTED}; font-size:13.5px; max-width:680px; line-height:1.5; }}
+.ui-hero-sub {{ color:{MUTED}; font-size:13.5px; max-width:960px; line-height:1.5; }}
 .ui-hero-pill {{ position:absolute; top:16px; right:20px; background:{YELLOW_SOFT}; color:{YELLOW_DK}; border:1px solid {YELLOW}; border-radius:9999px; padding:5px 13px; font-size:12px; font-weight:800; white-space:nowrap; }}
 
 /* Grids */

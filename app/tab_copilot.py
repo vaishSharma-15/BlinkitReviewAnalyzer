@@ -106,7 +106,7 @@ def render():
 
     ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
                      "Trained on thousands of Blinkit reviews, Reddit threads and community "
-                     "discussions. Every answer is grounded in what real users actually said."))
+                     "discussions — every answer grounded in what real users said."))
 
     if not st.session_state.copilot_messages:
         st.markdown(f'<div class="ui-label">Suggested Questions</div>', unsafe_allow_html=True)
