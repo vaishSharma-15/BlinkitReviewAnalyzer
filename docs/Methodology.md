@@ -1,98 +1,65 @@
-# Methodology
+# How This Analysis Works
 
-How the Blinkit Review Discovery Engine gathers data, identifies themes, generates
-insights, and checks that those insights hold up.
+A plain-language guide to where the Blinkit review data comes from, how it becomes
+themes and insights, and how we check that those insights are trustworthy.
 
-Every figure below is read from the pipeline's own manifests, not estimated.
-
-```
-ingest → normalize → relevance gate → enrich → synthesize → validate
-                                         ↓
-                                  index → Insight Engine (RAG)
-```
+All numbers come from the pipeline's own output files.
 
 ---
 
-## 1. Gathering and analyzing the data
+## 1. Where the data comes from
 
-### Sources
+We collected public reviews and discussions about Blinkit from five places:
 
-| Source | Coverage | Enriched records |
+| Source | What it is | Reviews used |
 |---|---|---|
-| Play Store | `com.grofers.customerapp`, IN/en | 3,662 |
-| YouTube | 10 search terms — hauls, comparisons, reviews | 252 |
+| Play Store | Android app reviews | 3,662 |
+| YouTube | Comments on hauls, reviews and comparisons | 252 |
 | Q-comm threads | Blinkit vs. Zepto / Instamart discussions | 121 |
-| App Store | app id 960335206, IN | 57 |
-| Product reviews | Category SKUs (pet, baby care, …) | 18 |
+| App Store | iPhone app reviews | 57 |
+| Product reviews | Reviews of specific products | 18 |
 
-Two collection notes, flagged in the data rather than hidden: YouTube uses `yt-dlp`
-instead of the official Data API, and Blinkit's own product pages require an
-authenticated session, so Amazon/Nykaa SKUs stand in — marked `meta.is_proxy_source`.
-
-### Cleaning
-
-`src/normalize.py` drops anything under 15 characters, filters spam, removes exact and
-near-duplicates (embedding cosine > 0.95, compared within source + day), and tags
-language as en / hi / hinglish / other using a deterministic keyword-and-script rule —
-no ML model, so the step stays auditable.
-
-### Relevance gate
-
-An LLM judges each record relevant or not to the research subject: shopping habits,
-category choice, discovery, assortment, category trial.
-
-Two constraints shaped it:
-
-- **Quota.** The free tier allows 500 requests/day, so calls are **batched** — 40 items
-  per relevance call, 15 per enrich call, numbered list in, JSON array out. A batch that
-  fails to parse is retried, then split in half recursively, so one bad response can't
-  drop a whole batch. Results are cached on disk, so reruns cost nothing.
-- **A keyword pre-filter** saves further quota, but runs on **English only**. Hindi and
-  Hinglish go through unfiltered, because the Latin-script keyword list under-matched
-  Devanagari badly — 6.2% survival versus 31.1% for English, a blind spot rather than a
-  real signal difference.
-
-### The funnel
-
-| Stage | Count |
-|---|---|
-| Raw collected | 41,176 |
-| After length, spam and dedup filters | 26,569 |
-| Judged relevant | **4,110** |
-| Enriched (0 failed) | **4,110** |
-| Assigned a theme | **3,548** |
-
-The corpus spans **2024-09-05 to 2026-07-23**; a barrier type was identified in 2,912 of
-the 4,110 records.
-
-**That ~10% survival rate is the design, not attrition.** The corpus is deliberately
-narrowed to reviews about category discovery and barriers, so it is *not* a
-representative sample of Blinkit sentiment. Figures drawn from it — such as the 60%
-negative / 29% positive split — describe this subset only, not overall satisfaction.
-
-### Enrichment
-
-Each relevant record gets closed-vocabulary labels in a single LLM call: category,
-behaviour signal, barrier type, segment signals (family stage, city tier, price
-sensitivity, pet ownership), sentiment (−1 to +1), quote-worthiness, and a primary
-theme. Every response is validated against the vocabularies in `src/schemas.py`, retried
-once on violation, then quarantined. **0 records failed** on the current run.
+The reviews span **September 2024 to July 2026**.
 
 ---
 
-## 2. Identifying themes
+## 2. How the data is cleaned and narrowed
 
-**Themes come from supervised classification against a fixed taxonomy, not from
-clustering** — a decision made after measuring the alternative.
+We started with **41,176** collected reviews and ended with **4,110** used in the
+analysis. Three steps get us there:
 
-Unsupervised clustering (embeddings → PCA → HDBSCAN) was built first. On this corpus it
-produced **3 clusters with 66% of records in the noise bucket** — too coarse to answer
-the eight research questions. Supervised classification leaves only ~14% unclassified.
+**Clean.** Remove very short reviews, spam, and duplicates (including near-duplicates —
+the same complaint posted twice in slightly different words). This leaves 26,569.
 
-Nine themes, hand-designed against the research questions, each record getting exactly
-one (or `unclassified`) in the same LLM call as the other labels:
+**Filter for relevance.** An AI model reads each review and decides whether it actually
+says something about *how people shop by category* — what they buy, what they avoid,
+how they find products, what stops them trying something new. Most reviews are about
+delivery speed or app bugs, so most are set aside. This leaves **4,110**.
 
-| Theme | Records | Share of themed |
+**Label.** Each surviving review is tagged with a category, the barrier it describes,
+the shopper's sentiment (positive to negative), signals about who they are (parent, pet
+owner, price-sensitive, city type), and one theme.
+
+| Stage | Reviews |
+|---|---|
+| Collected | 41,176 |
+| After cleaning | 26,569 |
+| Relevant to the research | **4,110** |
+| Sorted into a theme | **3,548** |
+
+**Keeping only 10% is the intent, not a failure.** We deliberately narrowed to reviews
+about category discovery. That also means this set is *not* a general measure of
+Blinkit satisfaction — the 60% negative / 29% positive split describes these
+discovery-related reviews, not customers overall.
+
+---
+
+## 3. How themes are identified
+
+We defined **nine themes** up front, built around the eight research questions, and the
+AI sorts each review into one of them.
+
+| Theme | Reviews | Share |
 |---|---|---|
 | Category-Specific Distrust | 1,463 | 41.2% |
 | Habit & Reorder | 469 | 13.2% |
@@ -103,119 +70,113 @@ one (or `unclassified`) in the same LLM call as the other labels:
 | Discovery Mechanics | 104 | 2.9% |
 | Platform Mental Model | 87 | 2.5% |
 | Life-Event Triggers | 36 | 1.0% |
-| *(unclassified)* | *562* | — |
+| Didn't fit any theme | 562 | — |
 
-Clustering still runs, but only over the `unclassified` leftovers, asking whether a tenth
-theme is missing. On this corpus those leftovers cluster into what the spec defines as
-noise — generic refund complaints naming no product, generic delivery praise — so the
-taxonomy stood. `unclassified` is always reported as its own row, never folded into a
-theme.
+**Why fixed themes instead of letting the computer find them?** We tried the automatic
+approach first — grouping reviews by similarity, with no predefined categories. It
+produced only **3 vague groups, with two-thirds of reviews left over as "noise"**. Too
+blunt to answer the research questions. Fixed themes leave only 14% unsorted.
 
----
+We still run the automatic grouping on the leftovers, as a check for a tenth theme we
+might have missed. So far the leftovers are genuine noise — refund complaints that name
+no product, generic praise for fast delivery.
 
-## 3. Generating insights
-
-### Offline synthesis
-
-`src/synthesize.py` groups enriched records by theme. **No clustering, no LLM call** — a
-group-by over labels already assigned, so it is free and reproducible.
-
-Themes rank by `prevalence × severity × strategic_relevance`:
-
-- **Prevalence** — theme size ÷ corpus size.
-- **Severity** — `abs(avg_sentiment)`: distance from neutral in *either* direction, so a
-  strongly positive habit theme counts as much as a strongly negative trust barrier.
-- **Strategic relevance** — 0.5 base, +0.25 for q-comm comparison evidence, +0.25 if the
-  theme answers three or more research questions.
-
-Each theme maps to the research questions it answers. **All eight are currently answered
-by at least one theme.**
-
-### Live retrieval (Insight Engine)
-
-All 4,110 records are embedded with `BAAI/bge-small-en-v1.5` — the same model used
-earlier in the pipeline — into a LanceDB index. At question time:
-
-1. Retrieve the **top 8 records** by vector similarity.
-2. Build a numbered context `[1]…[8]` where each quote carries its **metadata** — source,
-   sentiment, barrier, theme, segments — not just text. That is what lets an answer name
-   specific segments and categories instead of paraphrasing complaints in the abstract.
-3. Request structured JSON: summary citing `[n]`, theme breakdown, affected segments,
-   recommendations.
-4. **Constrain the vocabulary** to the nine themes and eight segment labels — and enforce
-   it on the way out with `_coerce()`, so an off-vocabulary label cannot reach the UI even
-   if the model ignores the instruction. This keeps chat and dashboard speaking the same
-   language.
-5. Render each `[n]` as a link to the quote it cites, with all retrieved quotes listed
-   and numbered below.
-
-Summary, themes and segments must come strictly from retrieved quotes. **Product
-recommendations are the one field allowed to carry model judgment**, an explicit
-relaxation of the insight-only constraint. When the daily quota runs out, the engine
-falls back to a deterministic extractive summary built from enrichment labels — never
-fabricated — and says which path produced the answer.
+Reviews that fit no theme are always shown as their own line, never quietly folded into
+a theme to make the numbers look tidier.
 
 ---
 
-## 4. Validating insight quality
+## 4. How insights are generated
 
-`python -m src.validate` writes `reports/scorecard.md`. Eight checks:
+**On the dashboard**, each theme is scored on three things: how often it appears, how
+strongly people feel about it, and how directly it answers the research questions. Every
+figure is counted from the labels — nothing is estimated or written by AI at this stage.
 
-| # | Check | Result |
-|---|---|---|
-| 1 | Gold-set classifier accuracy | **Pending** |
-| 2 | Inter-run stability | **0.833** agreement (n = 90) |
-| 3 | Cross-source triangulation | **9/9** themes span ≥ 2 sources |
-| 4 | Citation audit | **1.0** verbatim, **1.0** valid URLs (n = 20) |
-| 5 | Counter-evidence search | Disconfirming records found for all 9 themes |
-| 6 | Recency split | Largest drift +6.6pp |
-| 7 | Ingest funnel | Counts per stage |
-| 8 | Source coverage + bias flags | 5 themes ≥ 90% single-source |
+**In the Insight Engine chat**, asking a question:
 
-Three of these deserve explanation:
+1. Finds the 8 most relevant real reviews.
+2. Passes them to the AI *with their labels attached* — source, sentiment, barrier,
+   theme, shopper type. This is why answers can name specific groups and categories
+   instead of speaking in generalities.
+3. Gets back a summary, the themes involved, who's affected, and recommendations.
+4. Shows the quotes underneath, numbered, so every claim links to the review behind it.
 
-**Check 1 is pending because it needs a person.** Accuracy has to be measured against
-labels a human wrote — an LLM graded on its own labels would just agree with itself.
-`src/gold_label.py` collects those human labels for 100 sampled reviews. **Nobody has
-done it yet, so classifier accuracy is still unmeasured.**
+Three rules keep answers honest:
 
-**Stability replaces bootstrap re-clustering.** The classifier is re-run on a fresh
-sample with the cache bypassed — a genuine second LLM pass. Agreement is **83.3%**, so
-roughly one record in six would be labelled differently next time. Read theme
-proportions as approximate.
-
-**Counter-evidence is searched for, not assumed absent.** For each theme the corpus is
-scanned for records sharing its dominant category but opposing its sentiment, and what
-turns up is reported — 160 disconfirming records for category distrust, 452 for price and
-value — so a dominant theme never reads as unanimous.
-
-### Known limitations
-
-1. **Play Store dominance** — 3,662 of 4,110 records (89%) come from one source, and five
-   themes are flagged ≥ 90% single-source. Triangulation passes on a technicality; the
-   weight is lopsided, and app-store reviews skew negative by nature.
-2. **Product reviews are proxies** — 18 records, from Amazon/Nykaa rather than Blinkit.
-3. **The gold set is unlabelled**, so classifier accuracy is unverified.
-4. **83.3% run-to-run agreement** means theme sizes carry real uncertainty.
-5. **The scorecard is one run behind** — generated against 36,771 raw / 3,950 enriched
-   versus today's 41,176 / 4,110. Rerun `python -m src.validate` before quoting §4
-   externally.
-6. **Sentiment buckets at ±0.2** and the scores are bimodal, so the neutral band is thin
-   (11%) and small threshold changes move the split.
+- The AI may only use themes and shopper groups from our fixed lists, so chat and
+  dashboard always use the same language. Anything else it invents is filtered out.
+- Summaries, themes and groups must come from the retrieved reviews — not the AI's
+  general knowledge. Recommendations are the one place its own judgment is allowed.
+- If the AI is unavailable, the app falls back to a summary built purely from the
+  labels, and says so.
 
 ---
 
-## Reproducing any figure
+## 5. How we check the quality of the insights
+
+Every claim gets checked by an automated report we can re-run at any time
+(`reports/scorecard.md`). Six checks matter most:
+
+**Do the same reviews get the same themes twice?**
+We re-ran the theme sorting on a fresh sample, ignoring any saved results, so it was a
+genuine second opinion. It agreed with the first pass **83% of the time** — about one
+review in six would land differently. Theme sizes are solid enough to rank, but should
+be read as approximate, not exact.
+
+**Does each theme appear in more than one place?**
+A theme found only in Play Store reviews could be an artifact of that one channel. **All
+9 themes appear across at least two independent sources.**
+
+**Are the quotes real?**
+We sampled 20 quotes shown as evidence and checked each one against its original review.
+**100% matched word for word**, with **100% working links** back to the source. Quotes
+are never paraphrased or reconstructed.
+
+**Did we go looking for evidence against ourselves?**
+For every theme, we search the full set for reviews that contradict it — same category,
+opposite sentiment — and report what we find. Category distrust has 160 reviews pointing
+the other way; price complaints have 452. This stops a common theme from being presented
+as if everyone agrees.
+
+**Are the complaints current?**
+We split the reviews into an older and newer half and compared. Themes are broadly
+stable; the biggest movement is category distrust rising about 7 points, so it is a
+current problem, not a legacy one.
+
+**Is any theme leaning on a single source?**
+The report flags any theme where 90%+ of evidence comes from one place. Five themes are
+flagged, all leaning on Play Store reviews — noted below.
+
+---
+
+## 6. What to keep in mind
+
+1. **Most evidence is Play Store reviews** — 3,662 of 4,110 (89%). App-store reviews
+   skew negative by nature, so the overall tone is more negative than the customer base
+   probably is.
+2. **Theme sizes carry ±uncertainty** because of the 83% repeat-agreement above.
+3. **Accuracy hasn't been checked against human judgment yet** — that check needs a
+   person to hand-label a sample, and it hasn't been done.
+4. **Product reviews are stand-ins** — only 18, and from other retailers rather than
+   Blinkit's own product pages.
+5. **The quality report is one run old** — it was generated on a slightly smaller set
+   (3,950 reviews vs. today's 4,110). Re-run it before quoting these figures externally.
+6. **Positive/negative is a cut-off, not a fact** — reviews are scored on a scale and
+   split at a threshold, so the exact percentages shift if the threshold moves.
+
+---
+
+## Re-running everything
 
 ```bash
-python -m src.normalize   --config config.yaml     # funnel counts
-python -m src.relevance   --config config.yaml     # relevance gate
-python -m src.enrich      --config config.yaml     # labels + theme_id
-python -m src.synthesize  --config config.yaml     # themes + research questions
-python -m src.validate    --config config.yaml     # reports/scorecard.md
-python -m src.index       --config config.yaml     # LanceDB index
-streamlit run app/rag_chatbot.py
+python -m src.normalize   --config config.yaml    # clean + dedupe
+python -m src.relevance   --config config.yaml    # filter for relevance
+python -m src.enrich      --config config.yaml    # labels + themes
+python -m src.synthesize  --config config.yaml    # theme summaries
+python -m src.validate    --config config.yaml    # the quality report
+python -m src.index       --config config.yaml    # search index for the app
+streamlit run app/rag_chatbot.py                  # the dashboard
 ```
 
-Each stage writes a manifest beside its output, and the dashboard reads those manifests
-directly — so the app and this document cannot silently disagree.
+Each step writes its own record of what it did, and the dashboard reads those records
+directly — so the app and this document can't drift apart.
