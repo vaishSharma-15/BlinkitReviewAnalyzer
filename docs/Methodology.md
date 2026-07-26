@@ -174,10 +174,10 @@ fabricated — and says which path produced the answer.
 
 Three of these deserve explanation:
 
-**The gold set is deliberately manual.** Grading an LLM against labels made by the same
-LLM is circular, so `src/gold_label.py` asks a human to judge 100 sampled items. Until
-that happens the scorecard reports `"pending"` — never a placeholder number. **It has not
-been run, so accuracy against human judgment is unknown.**
+**Check 1 is pending because it needs a person.** Accuracy has to be measured against
+labels a human wrote — an LLM graded on its own labels would just agree with itself.
+`src/gold_label.py` collects those human labels for 100 sampled reviews. **Nobody has
+done it yet, so classifier accuracy is still unmeasured.**
 
 **Stability replaces bootstrap re-clustering.** The classifier is re-run on a fresh
 sample with the cache bypassed — a genuine second LLM pass. Agreement is **83.3%**, so
