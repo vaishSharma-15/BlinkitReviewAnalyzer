@@ -190,8 +190,10 @@ def _donut(pos, neu, neg, n):
     return (f'<div class="ui-card"><div class="ui-card-title">Sentiment Distribution</div>'
             f'<div class="ui-card-sub">Share of the current selection ({ui.fmt_full(n)} reviews)</div><div class="ui-donut-wrap">'
             f'<div class="ui-donut" style="background:conic-gradient({ui.POS} 0% {a1:.1f}%,{ui.NEU} {a1:.1f}% {a2:.1f}%,{ui.NEG} {a2:.1f}% 100%);">'
-            f'<div class="ui-donut-hole"><div class="ui-donut-big" style="color:{ui.POS};">{p:.0f}%</div>'
-            f'<div class="ui-donut-lbl">Positive</div></div></div>'
+            # Matches Overview: the corpus size, not the positive share, which read as
+            # the headline number over a mostly-negative ring.
+            f'<div class="ui-donut-hole"><div class="ui-donut-big" style="color:{ui.TXT};">{ui.fmt_full(n)}</div>'
+            f'<div class="ui-donut-lbl">Reviews</div></div></div>'
             f'<div style="flex:1;"><div class="ui-leg"><span class="ui-dot" style="background:{ui.POS};"></span>Positive<span class="ui-leg-val">{p:.0f}%</span></div>'
             f'<div class="ui-leg"><span class="ui-dot" style="background:{ui.NEU};"></span>Neutral<span class="ui-leg-val">{nu:.0f}%</span></div>'
             f'<div class="ui-leg"><span class="ui-dot" style="background:{ui.NEG};"></span>Negative<span class="ui-leg-val">{ng:.0f}%</span></div></div></div></div>')

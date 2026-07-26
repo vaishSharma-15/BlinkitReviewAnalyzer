@@ -37,7 +37,7 @@ def render():
         _kpis(total, n_sources, classified, avg_rating, sent_score, pos),
         '<div class="ui-row">', _funnel(df, total, classified), "</div>",
         '<div class="ui-row ui-split">', _struggles(df), _concentration(df), "</div>",
-        '<div class="ui-row ui-split">', _segments(df), _donut(pos, neu, neg), "</div>",
+        '<div class="ui-row ui-split">', _segments(df), _donut(pos, neu, neg, total), "</div>",
         '<div class="ui-row">', _coverage(df), "</div>",
         '<div class="ui-row">', _recent(df), "</div>",
     ]
@@ -182,14 +182,16 @@ def _segments(df):
             f'<div class="ui-seg-head"><div>#</div><div>Segment</div><div>Rate</div><div>Reviews</div></div>{body}</div>')
 
 
-def _donut(pos, neu, neg):
+def _donut(pos, neu, neg, total):
     p, nu, ng = pos * 100, neu * 100, neg * 100
     a1, a2 = p, p + nu
+    # Centre carries the corpus size rather than the positive share: a lone "29%
+    # POSITIVE" over a mostly-negative ring read as the headline figure.
     return (f'<div class="ui-card"><div class="ui-card-title">Sentiment Breakdown</div>'
             f'<div class="ui-card-sub">Share of all reviews</div><div class="ui-donut-wrap">'
             f'<div class="ui-donut" style="background:conic-gradient({ui.POS} 0% {a1:.1f}%,{ui.NEU} {a1:.1f}% {a2:.1f}%,{ui.NEG} {a2:.1f}% 100%);">'
-            f'<div class="ui-donut-hole"><div class="ui-donut-big" style="color:{ui.POS};">{p:.0f}%</div>'
-            f'<div class="ui-donut-lbl">Positive</div></div></div>'
+            f'<div class="ui-donut-hole"><div class="ui-donut-big" style="color:{ui.TXT};">{ui.fmt_full(total)}</div>'
+            f'<div class="ui-donut-lbl">Reviews</div></div></div>'
             f'<div style="flex:1;"><div class="ui-leg"><span class="ui-dot" style="background:{ui.POS};"></span>Positive<span class="ui-leg-val">{p:.0f}%</span></div>'
             f'<div class="ui-leg"><span class="ui-dot" style="background:{ui.NEU};"></span>Neutral<span class="ui-leg-val">{nu:.0f}%</span></div>'
             f'<div class="ui-leg"><span class="ui-dot" style="background:{ui.NEG};"></span>Negative<span class="ui-leg-val">{ng:.0f}%</span></div></div></div></div>')
