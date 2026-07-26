@@ -18,10 +18,12 @@ from app.rag_engine import generate_structured_answer, get_db, retrieve_evidence
 SUGGESTED_QUESTIONS = [
     "Why do users repeatedly buy from the same categories?",
     "What prevents users from exploring new categories?",
-    "How do users discover products on the platform today?",
-    "What role do habits and reorder behaviour play?",
-    "Which user segments are most frustrated?",
-    "What unmet needs emerge consistently across sources?",
+    "How do users discover products today?",
+    "What role do habits play in shopping behavior?",
+    "What information do users need before trying a new category?",
+    "What frustrations emerge repeatedly?",
+    "Which user segments are more likely to experiment?",
+    "What unmet needs emerge consistently across discussions?",
 ]
 
 
@@ -144,8 +146,10 @@ def _scroll_to_latest():
             if (!el) return false;
             const cont = doc.querySelector('[data-testid="stAppScrollToBottomContainer"]');
             if (cont) {{
+                // 76px clears Streamlit's 60px fixed header, which overlays the
+                // scroll container and would otherwise cut off the question bubble.
                 const top = el.getBoundingClientRect().top
-                          - cont.getBoundingClientRect().top + cont.scrollTop - 12;
+                          - cont.getBoundingClientRect().top + cont.scrollTop - 76;
                 cont.scrollTo({{top: top, behavior: "smooth"}});
             }} else {{
                 el.scrollIntoView({{behavior: "smooth", block: "start"}});

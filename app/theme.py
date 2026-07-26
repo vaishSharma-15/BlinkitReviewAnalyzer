@@ -86,8 +86,24 @@ def inject_theme():
 
         /* Push the account chip to the foot of the sidebar: make the sidebar's content
         column full-height, then let the chip's wrapper absorb the slack above it. */
+        /* Tall enough to push the account chip to the foot, short enough that the
+        sidebar never overflows into a scrollbar: Streamlit already reserves 96px of
+        bottom padding below this block, and 7rem left the content ~16px too tall. */
+        [data-testid="stSidebarUserContent"] {{
+            padding-bottom: 1.5rem !important;
+        }}
         [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {{
-            min-height: calc(100vh - 7rem);
+            min-height: calc(100vh - 9rem);
+        }}
+        /* The stretched block sits ~16px past its own box (flex gap below the last
+        child), which is empty space but still raises a scrollbar. Clip it only where
+        the nav genuinely fits; on short viewports scrolling must stay available. */
+        @media (min-height: 620px) {{
+            [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"],
+            [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] > div,
+            [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {{
+                overflow: hidden !important;
+            }}
         }}
         /* :has() is needed because the chip is wrapped in Streamlit's own
         stElementContainer — that wrapper, not .sb-user-foot itself, is the flex child
