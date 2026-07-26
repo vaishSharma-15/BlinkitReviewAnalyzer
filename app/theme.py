@@ -73,7 +73,9 @@ def inject_theme():
 
         /* Sidebar: Blinkit-yellow gradient wash, defined edge against the main area */
         [data-testid="stSidebar"] {{
-            background: linear-gradient(180deg, {SIDEBAR_BG} 0%, {SIDEBAR_BG_FADE} 62%);
+            /* Fade runs the full height, not out by 62% — stopping early left the lower
+            half reading as plain white rather than a yellow panel. */
+            background: linear-gradient(180deg, {SIDEBAR_BG} 0%, {SIDEBAR_BG_FADE} 100%);
             border-right: 2px solid {SIDEBAR_BORDER};
             box-shadow: 2px 0 10px rgba(16,24,40,0.05);
         }}
@@ -111,7 +113,13 @@ def inject_theme():
         [data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.sb-user-foot) {{
             margin-top: auto;
         }}
-        .sb-user-foot {{ padding-top: 18px; }}
+        /* Yellow rule above the account chip — the st.divider() that used to sit here
+        went away when the chip was pinned to the foot. */
+        .sb-user-foot {{
+            padding-top: 18px;
+            border-top: 1px solid {SIDEBAR_BORDER};
+            margin-top: 18px;
+        }}
         .sb-user {{
             display: flex; align-items: center; gap: 10px;
             background: rgba(255,255,255,0.72);
