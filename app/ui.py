@@ -18,11 +18,11 @@ import streamlit as st
 PAGE = "#f6f7f9"
 CARD = "#ffffff"
 CARD2 = "#f9fafb"
-BORDER = "#eceef1"
-BORDER2 = "#e2e5ea"
+BORDER = "#dce0e6"
+BORDER2 = "#c3cad4"
 TXT = "#16181d"
-MUTED = "#6b7280"
-FAINT = "#9aa1ab"
+MUTED = "#4b5563"
+FAINT = "#6b7280"
 YELLOW = "#F8CB46"
 YELLOW_DK = "#e0ad10"
 YELLOW_SOFT = "#fef6dc"
@@ -156,19 +156,19 @@ def inject_ui():
 
 _UI_CSS = f"""<style>
 /* Trim Streamlit's tall default top padding so the hero sits near the top. */
-.block-container, [data-testid="stMainBlockContainer"] {{ padding-top:2.2rem !important; padding-bottom:3rem !important; }}
+.block-container, [data-testid="stMainBlockContainer"] {{ padding-top:1.0rem !important; padding-bottom:3rem !important; }}
 .ui-wrap {{ font-family:'Inter',sans-serif; }}
 .ui-wrap * {{ box-sizing:border-box; }}
-.ui-label {{ color:{FAINT}; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin:20px 2px 11px; }}
+.ui-label {{ color:{TXT}; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin:20px 2px 11px; }}
 .ui-dot {{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:8px; vertical-align:middle; }}
 .ui-muted {{ color:{MUTED}; font-size:13px; }}
 
 /* Hero banner — compact */
-.ui-hero {{ background:{CARD}; border:1px solid {BORDER}; border-radius:14px; padding:16px 20px; display:flex; align-items:center; gap:15px; position:relative; box-shadow:0 1px 2px rgba(16,24,40,0.04); }}
+.ui-hero {{ background:{CARD}; border:1px solid {BORDER2}; border-left:5px solid {YELLOW}; border-radius:14px; padding:18px 22px; display:flex; align-items:center; gap:15px; position:relative; box-shadow:0 2px 8px rgba(16,24,40,0.07); }}
 .ui-hero-icon {{ width:42px; height:42px; border-radius:11px; background:{YELLOW}; display:flex; align-items:center; justify-content:center; flex-shrink:0; }}
 .ui-eyebrow {{ color:{YELLOW_DK}; font-size:10px; font-weight:800; letter-spacing:0.13em; text-transform:uppercase; }}
-.ui-hero-title {{ color:{TXT}; font-size:23px; font-weight:800; letter-spacing:-0.02em; margin:2px 0 3px; line-height:1.15; }}
-.ui-hero-sub {{ color:{MUTED}; font-size:13px; max-width:680px; line-height:1.5; }}
+.ui-hero-title {{ color:{TXT}; font-size:28px; font-weight:800; letter-spacing:-0.02em; margin:3px 0 5px; line-height:1.15; }}
+.ui-hero-sub {{ color:{MUTED}; font-size:13.5px; max-width:680px; line-height:1.5; }}
 .ui-hero-pill {{ position:absolute; top:16px; right:20px; background:{YELLOW_SOFT}; color:{YELLOW_DK}; border:1px solid {YELLOW}; border-radius:9999px; padding:5px 13px; font-size:12px; font-weight:800; white-space:nowrap; }}
 
 /* Grids */
@@ -180,18 +180,19 @@ _UI_CSS = f"""<style>
 .ui-row {{ margin-top:16px; }}
 
 /* Cards */
-.ui-card {{ background:{CARD}; border:1px solid {BORDER}; border-radius:14px; padding:20px; box-shadow:0 1px 2px rgba(16,24,40,0.04); min-width:0; }}
+.ui-card {{ background:{CARD}; border:1px solid {BORDER2}; border-radius:14px; padding:20px; box-shadow:0 2px 6px rgba(16,24,40,0.06); min-width:0; }}
+.ui-card:hover {{ border-color:{YELLOW}; box-shadow:0 3px 12px rgba(16,24,40,0.09); }}
 .ui-card-title {{ color:{TXT}; font-size:16px; font-weight:800; }}
-.ui-card-sub {{ color:{MUTED}; font-size:12px; margin:3px 0 16px; }}
+.ui-card-sub {{ color:{MUTED}; font-size:12.5px; margin:3px 0 16px; }}
 
 /* Source-accent cards */
-.ui-src {{ background:{CARD}; border:1px solid {BORDER}; border-radius:12px; padding:15px 17px; box-shadow:0 1px 2px rgba(16,24,40,0.04); min-width:0; }}
+.ui-src {{ background:{CARD}; border:1px solid {BORDER2}; border-radius:12px; padding:15px 17px; box-shadow:0 1px 2px rgba(16,24,40,0.04); min-width:0; }}
 .ui-src-name {{ color:{TXT}; font-size:13px; font-weight:700; }}
 .ui-src-count {{ color:{TXT}; font-size:24px; font-weight:800; margin:2px 0; }}
 .ui-src-metric {{ color:{MUTED}; font-size:12px; }}
 
 /* Stat tiles */
-.ui-stat {{ background:{CARD}; border:1px solid {BORDER}; border-radius:12px; padding:15px; display:flex; align-items:center; gap:11px; box-shadow:0 1px 2px rgba(16,24,40,0.04); min-width:0; }}
+.ui-stat {{ background:{CARD}; border:1px solid {BORDER2}; border-radius:12px; padding:15px; display:flex; align-items:center; gap:11px; box-shadow:0 1px 2px rgba(16,24,40,0.04); min-width:0; }}
 .ui-stat-icon {{ width:34px; height:34px; border-radius:9px; background:{YELLOW_SOFT}; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }}
 .ui-stat-body {{ min-width:0; flex:1; }}
 .ui-stat-label {{ color:{MUTED}; font-size:10px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; line-height:1.3; }}
@@ -239,7 +240,7 @@ _UI_CSS = f"""<style>
 .ui-seg-name {{ color:{TXT}; font-size:13px; font-weight:600; }}
 .ui-seg-rate {{ color:{NEG}; font-size:14px; font-weight:800; text-align:right; }}
 .ui-seg-n {{ color:{MUTED}; font-size:13px; text-align:right; }}
-.ui-segcard {{ background:{CARD}; border:1px solid {BORDER}; border-radius:12px; padding:16px; position:relative; box-shadow:0 1px 2px rgba(16,24,40,0.04); }}
+.ui-segcard {{ background:{CARD}; border:1px solid {BORDER2}; border-radius:12px; padding:16px; position:relative; box-shadow:0 1px 2px rgba(16,24,40,0.04); }}
 .ui-segcard-rank {{ position:absolute; top:14px; right:16px; color:{FAINT}; font-size:12px; font-weight:700; }}
 .ui-segcard-icon {{ width:30px; height:30px; border-radius:8px; background:{YELLOW_SOFT}; display:inline-flex; align-items:center; justify-content:center; font-size:15px; }}
 .ui-segcard-pct {{ font-size:26px; font-weight:800; margin:12px 0 2px; }}
@@ -281,7 +282,7 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
 .ui-quote-src {{ font-style:normal; color:{FAINT}; font-size:11px; margin-top:3px; }}
 
 /* Source/review cards */
-.ui-rev {{ background:{CARD}; border:1px solid {BORDER}; border-radius:11px; padding:14px; box-shadow:0 1px 2px rgba(16,24,40,0.04); }}
+.ui-rev {{ background:{CARD}; border:1px solid {BORDER2}; border-radius:11px; padding:14px; box-shadow:0 1px 2px rgba(16,24,40,0.04); }}
 .ui-rev-head {{ display:flex; justify-content:space-between; align-items:center; color:{TXT}; font-size:12px; font-weight:700; margin-bottom:8px; }}
 .ui-rev-date {{ color:{FAINT}; font-weight:500; }}
 .ui-rev-text {{ color:{MUTED}; font-size:12px; line-height:1.5; min-height:52px; }}

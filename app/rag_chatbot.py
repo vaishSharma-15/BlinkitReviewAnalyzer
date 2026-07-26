@@ -6,7 +6,6 @@ Intelligence, Insight Engine. Each tab's rendering logic lives in its own
 app/tab_*.py module; this file is the nav shell + page config + theme injection.
 """
 import base64
-import json
 import sys
 from pathlib import Path
 
@@ -77,11 +76,20 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    manifest_path = ROOT / "data" / "index" / "manifest.json"
-    if manifest_path.exists():
-        manifest = json.loads(manifest_path.read_text())
-        st.caption(f"Evidence indexed: {manifest['n_evidence']}")
-        st.caption(f"Themes indexed: {manifest['n_themes']}")
+    # Demo account chip. Not authentication — the app has no login; this stands in for
+    # the signed-in user in walkthroughs.
+    st.markdown(
+        """
+        <div class="sb-user">
+            <div class="sb-user-av">GP</div>
+            <div style="min-width:0;">
+                <div class="sb-user-name">Growth PM</div>
+                <div class="sb-user-role">Demo session</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 st.markdown('<div class="ui-wrap">', unsafe_allow_html=True)
 PAGES[st.session_state.active_page][1].render()

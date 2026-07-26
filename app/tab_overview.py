@@ -23,12 +23,16 @@ def render():
     neu = df["sentiment"].between(-0.2, 0.2).mean()
     neg = (df["sentiment"] < -0.2).mean()
     classified = int((df["theme_id"] != "unclassified").sum())
+    # Everything actually pulled from the sources, before the dedup/relevance gates —
+    # the pill reports the scrape, the funnel below shows how it narrows to `total`.
+    scraped = load_funnel().get("normalized", {}).get("funnel", {}).get("raw") or total
 
     parts = [
         ui.hero("grid", "Blinkit · Voice of Customer", "Blinkit Reviews Discovery Engine",
                 f"What real Blinkit reviewers reveal about why shoppers stay inside a few familiar "
-                f"categories — {ui.fmt_full(total)} public reviews, each classified by an LLM, not keyword rules.",
-                pill=f"{ui.fmt_full(total)} reviews analyzed"),
+                f"categories — {ui.fmt_full(scraped)} reviews scraped across {n_sources} sources, "
+                f"narrowed to {ui.fmt_full(total)} classified by an LLM, not keyword rules.",
+                pill=f"{ui.fmt_full(scraped)} reviews scraped"),
         _sources(df),
         _kpis(total, n_sources, classified, avg_rating, sent_score, pos),
         '<div class="ui-row">', _funnel(df, total, classified), "</div>",

@@ -27,9 +27,10 @@ BACKGROUND = "#f7f9fb"
 # Sidebar carries a wash of the Blinkit brand yellow (#FFE141 in the official app
 # icon) rather than the flat white of the Stitch source. Kept far lighter than the
 # brand colour itself so 14px nav text still clears WCAG AA against it.
-SIDEBAR_BG = "#fff8d6"
-SIDEBAR_BORDER = "#f0dc8a"
-SIDEBAR_HOVER = "#fdf0b4"
+SIDEBAR_BG = "#ffefa8"
+SIDEBAR_BG_FADE = "#fff8d6"
+SIDEBAR_BORDER = "#e8cf5e"
+SIDEBAR_HOVER = "#fff8d6"
 CARD_BG = "#ffffff"
 CARD_BORDER = "#E2E8F0"
 CARD_BORDER_HOVER = "#CBD5E1"
@@ -70,14 +71,38 @@ def inject_theme():
         html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
         .stApp {{ background-color: {BACKGROUND}; }}
 
-        /* Sidebar: Blinkit-yellow wash, hairline divider from the main area */
+        /* Sidebar: Blinkit-yellow gradient wash, defined edge against the main area */
         [data-testid="stSidebar"] {{
-            background-color: {SIDEBAR_BG};
-            border-right: 1px solid {SIDEBAR_BORDER};
+            background: linear-gradient(180deg, {SIDEBAR_BG} 0%, {SIDEBAR_BG_FADE} 62%);
+            border-right: 2px solid {SIDEBAR_BORDER};
+            box-shadow: 2px 0 10px rgba(16,24,40,0.05);
         }}
         [data-testid="stSidebar"] hr {{
             border-color: {SIDEBAR_BORDER};
+            margin: 14px 0;
         }}
+        /* Nav rows need breathing room now that the sidebar carries colour. */
+        [data-testid="stSidebar"] .stButton {{ margin-bottom: 4px; }}
+
+        /* Demo account chip pinned under the divider */
+        .sb-user {{
+            display: flex; align-items: center; gap: 10px;
+            background: rgba(255,255,255,0.72);
+            border: 1px solid {SIDEBAR_BORDER};
+            border-radius: 10px; padding: 9px 11px;
+        }}
+        /* Selector is scoped to the sidebar so it outranks the blanket
+        `[data-testid="stSidebar"] *` colour rule above — an unscoped `.sb-user-av`
+        ties on specificity, loses on source order, and paints the initials
+        black on a black circle. */
+        [data-testid="stSidebar"] .sb-user-av {{
+            width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+            background: {ON_PRIMARY}; color: {PRIMARY_YELLOW} !important;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 800; letter-spacing: 0.02em;
+        }}
+        .sb-user-name {{ color: {TEXT_MAIN}; font-size: 13px; font-weight: 700; line-height: 1.2; }}
+        .sb-user-role {{ color: #6f6440; font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; }}
         [data-testid="stSidebar"] * {{
             color: {TEXT_MAIN} !important;
         }}
