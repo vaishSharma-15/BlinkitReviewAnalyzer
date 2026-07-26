@@ -7,7 +7,10 @@ Product Recommendations is included at the user's explicit request, overriding t
 project spec's default insight-only constraint (docs/ProblemStatement.md) — see
 app/rag_engine.py's generate_structured_answer for how that field is generated.
 """
+import re
+
 import streamlit as st
+import streamlit.components.v1 as components
 
 from app import ui
 from app.rag_engine import generate_structured_answer, get_db, retrieve_evidence, retrieve_themes
@@ -26,17 +29,42 @@ def _seclabel(text):
     return f'<div class="ui-secline">{text}</div>'
 
 
-def _render_message(msg):
+def _cite_links(summary: str, midx: int, n_evidence: int) -> str:
+    """Turn the model's "[1, 4, 5]" citations into chips that jump to those quotes.
+
+    Escape first, then substitute, so the chip anchors are the only markup that survives.
+    A number outside the retrieved range is left as plain text rather than linked to a
+    card that does not exist.
+    """
+    safe = ui.esc(summary)
+
+    def repl(m):
+        chips = []
+        for part in m.group(1).split(","):
+            part = part.strip()
+            if part.isdigit() and 1 <= int(part) <= n_evidence:
+                chips.append(f'<a class="ui-citechip" href="#ev-{midx}-{part}" '
+                             f'title="Jump to supporting quote {part}">{part}</a>')
+            elif part:
+                chips.append(f"[{ui.esc(part)}]")
+        return "".join(chips)
+
+    return re.sub(r"\[([\d,\s]+)\]", repl, safe)
+
+
+def _render_message(msg, midx: int = 0):
     query, structured, evidence = msg["query"], msg["structured"], msg["evidence"]
 
-    # Question bubble (right-aligned)
-    q_html = (f'<div class="ui-chat-q"><div class="ui-chat-q-bubble">{ui.esc(query)}</div>'
+    # Question bubble (right-aligned). The id is the scroll target for a new answer —
+    # landing here shows the question and the top of its answer, not the tail of it.
+    q_html = (f'<div class="ui-chat-q" id="msg-{midx}"><div class="ui-chat-q-bubble">{ui.esc(query)}</div>'
               f'<div class="ui-chat-avatar q">{ui.icon("user", size=17, color="#191c1e")}</div></div>')
 
     # Answer (left-aligned card)
     body = [f'<div class="ui-card" style="border-radius:14px 14px 14px 4px;">',
             _seclabel("Executive Summary"),
-            f'<div style="color:{ui.TXT};font-size:14px;line-height:1.6;">{ui.esc(structured["executive_summary"])}</div>']
+            f'<div style="color:{ui.TXT};font-size:14px;line-height:1.6;">'
+            f'{_cite_links(structured["executive_summary"], midx, len(evidence))}</div>']
 
     if structured.get("theme_breakdown") or structured.get("affected_segments"):
         body.append('<div class="ui-g2" style="margin-top:14px;">')
@@ -72,7 +100,7 @@ def _render_message(msg):
             url = e.get("url", "")
             cite = (f'<a class="ui-cite" href="{ui.esc(url)}" target="_blank" rel="noopener">'
                     f'{ui.icon("link", size=12, color=ui.YELLOW_DK)}view source</a>') if url else ""
-            body.append(f'<div style="border-left:2px solid {color};padding:2px 0 2px 12px;margin:10px 0;">'
+            body.append(f'<div id="ev-{midx}-{i}" style="border-left:2px solid {color};padding:2px 0 2px 12px;margin:10px 0;scroll-margin-top:80px;">'
                         f'<div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">'
                         f'<span class="ui-citenum">[{i}]</span>'
                         f'<span class="ui-badge" style="color:{color};border-color:{color}55;background:{color}12;">{name}</span>'
@@ -95,6 +123,42 @@ def _render_message(msg):
     ui.flush([q_html, a_html])
 
 
+def _scroll_to_latest():
+    """Scroll to the top of the newest exchange, once, after it is rendered.
+
+    Two obstacles. st.markdown strips <script>, so the JS runs from a components iframe
+    and reaches into the parent document. And the scroller is Streamlit's
+    stAppScrollToBottomContainer, which — with a chat_input on the page — pins itself to
+    the bottom, i.e. the tail of the answer that just arrived. A single scroll call loses
+    that race, so the position is re-asserted over the second following the rerun.
+    """
+    idx = st.session_state.pop("copilot_scroll_to", None)
+    if idx is None:
+        return
+    components.html(
+        f"""
+        <script>
+        const doc = window.parent.document;
+        function jump() {{
+            const el = doc.getElementById("msg-{idx}");
+            if (!el) return false;
+            const cont = doc.querySelector('[data-testid="stAppScrollToBottomContainer"]');
+            if (cont) {{
+                const top = el.getBoundingClientRect().top
+                          - cont.getBoundingClientRect().top + cont.scrollTop - 12;
+                cont.scrollTo({{top: top, behavior: "smooth"}});
+            }} else {{
+                el.scrollIntoView({{behavior: "smooth", block: "start"}});
+            }}
+            return true;
+        }}
+        [0, 80, 200, 450, 800, 1200].forEach(d => setTimeout(jump, d));
+        </script>
+        """,
+        height=0,
+    )
+
+
 def render():
     db = get_db()
     if db is None:
@@ -109,6 +173,9 @@ def render():
         evidence = retrieve_evidence(query, top_k=8)
         structured = generate_structured_answer(query, evidence, matched)
         st.session_state.copilot_messages.append({"query": query, "structured": structured, "evidence": evidence})
+        # Land on the top of the new exchange. Streamlit otherwise leaves the viewport at
+        # the foot of the page, i.e. the tail end of the answer that just appeared.
+        st.session_state.copilot_scroll_to = len(st.session_state.copilot_messages) - 1
 
     ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
                      "Trained on thousands of Blinkit reviews, Reddit threads and community "
@@ -122,8 +189,10 @@ def render():
                 ask(q)
                 st.rerun()
 
-    for msg in st.session_state.copilot_messages:
-        _render_message(msg)
+    for i, msg in enumerate(st.session_state.copilot_messages):
+        _render_message(msg, i)
+
+    _scroll_to_latest()
 
     if query := st.chat_input("Ask about barriers, categories, segments, discovery…"):
         ask(query)

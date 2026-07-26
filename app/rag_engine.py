@@ -144,6 +144,18 @@ SEGMENT_DISPLAY = {
 }
 
 
+def ui_sentiment(score: float) -> str:
+    return "positive" if score > 0.2 else ("negative" if score < -0.2 else "neutral")
+
+
+def _evidence_segments(e: dict) -> str:
+    """The segment labels attached to one quote, for the model's context block."""
+    got = [SEGMENT_DISPLAY[(f, e.get(f))] for f in
+           ["family_stage", "city_tier", "price_sensitivity", "has_pet"]
+           if (f, e.get(f)) in SEGMENT_DISPLAY]
+    return ", ".join(got)
+
+
 def _segment_labels(evidence: List[dict]) -> List[str]:
     """Dominant segment per dimension, named exactly as the Overview tab names it."""
     labels = []
@@ -177,8 +189,15 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
         try:
             from src.llm import DailyQuotaExhausted, call_llm
 
+            # Each quote carries its enrichment labels, not just its text. Without the
+            # segment/barrier/theme fields the model can only paraphrase complaints in
+            # the abstract ("users are frustrated by delays"), which is what made answers
+            # to questions like "which segments are most frustrated?" read generically.
             context = "\n\n".join(
-                f"[{i+1}] (source: {e['source']}) \"{e['text'][:400]}\""
+                f"[{i+1}] source={e['source']} sentiment={ui_sentiment(e['sentiment'])} "
+                f"barrier={e.get('barrier_type', 'none')} theme={e.get('theme_id', 'unclassified')} "
+                f"segments={_evidence_segments(e) or 'unknown'} date={str(e.get('date', ''))[:10]}\n"
+                f"\"{e['text'][:400]}\""
                 for i, e in enumerate(evidence)
             )
             system_prompt = (
@@ -195,12 +214,20 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 "affected_segments MUST use only these exact labels, and only where the quotes "
                 f"actually show that group: {', '.join(SEGMENT_CHOICES)}. "
                 "Do not invent new theme or segment labels; return an empty list if none apply. "
+                "Be specific, not generic: answer the question that was asked directly in the "
+                "first sentence, and use the concrete detail in the quotes and their metadata — "
+                "name the actual categories, products, competitors, segments and sources the "
+                "evidence mentions, and say how many of the quotes support each point. If the "
+                "question asks which group or segment, lead with the segment labels in the "
+                "metadata rather than describing complaints in general. Never write a sentence "
+                "that would read the same for any other question. Cite [n] after each claim. "
                 "product_recommendations may reflect your own product judgment (unlike the other "
-                "fields, which must stay strictly evidence-grounded) — keep each one short and "
-                "directional, not a detailed spec."
+                "fields, which must stay strictly evidence-grounded) — each must respond to a "
+                "specific problem in the quotes, naming it, not restate a generic best practice."
             )
-            # v4: prompt vocabulary changed, so the on-disk cache must not serve v3 answers.
-            raw = call_llm(system_prompt, f"Question: {query}\n\nEvidence:\n{context}", "rag-answer-v4", json_mode=True)
+            # v5: context now carries per-quote metadata and the specificity rules changed,
+            # so the on-disk cache must not serve v3/v4 answers.
+            raw = call_llm(system_prompt, f"Question: {query}\n\nEvidence:\n{context}", "rag-answer-v5", json_mode=True)
             if raw:
                 import json
                 import re
