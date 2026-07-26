@@ -196,6 +196,38 @@ def inject_theme():
             width: 100%;
         }}
 
+        /* Main-area buttons: Streamlit's per-widget emotion styles outrank the plain
+        `.stButton > button` rule above once a button has ever been disabled, leaving it
+        white. Scoping to the main block wins the specificity fight; :not(:disabled)
+        keeps Streamlit's faded disabled state as a real affordance. */
+        [data-testid="stMainBlockContainer"] [data-testid="stButton"] button:not(:disabled) {{
+            background-color: {PRIMARY_YELLOW};
+            border: 1px solid {PRIMARY_YELLOW_DIM};
+            color: {ON_PRIMARY};
+            font-weight: 600;
+        }}
+        [data-testid="stMainBlockContainer"] [data-testid="stButton"] button:not(:disabled):hover {{
+            background-color: {PRIMARY_YELLOW_DIM};
+            border-color: {PRIMARY_YELLOW_DIM};
+        }}
+
+        /* Text inputs: Streamlit's 16px text on a 22.4px line-height sits in a 22px
+        content box with overflow:hidden, which shaves the descenders off "g/y/p".
+        Smaller text plus real vertical padding gives the glyphs room. */
+        [data-testid="stTextInput"] input {{
+            font-size: 14px !important;
+            line-height: 1.5 !important;
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+            height: auto !important;
+        }}
+        /* Focus ring in brand yellow instead of Streamlit's default red. */
+        [data-testid="stTextInput"] div[data-baseweb="input"]:focus-within,
+        [data-testid="stTextInput"] div[data-baseweb="base-input"]:focus-within {{
+            border-color: {PRIMARY_YELLOW} !important;
+            box-shadow: 0 0 0 2px rgba(249, 213, 7, 0.38) !important;
+        }}
+
         /* Metrics: uppercase label, tight card look */
         [data-testid="stMetric"] {{
             background-color: {CARD_BG};

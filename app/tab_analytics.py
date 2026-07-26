@@ -13,6 +13,17 @@ from app.data import load_enriched_df
 
 MATCH_LIMIT = 12
 
+# Filter widgets are keyed so the Reset button can clear them from session state.
+KW_KEY, SRC_KEY, SENT_KEY = "an_kw", "an_src", "an_sent"
+
+
+def _reset():
+    """Clear the filter bar. Runs as an on_click callback, i.e. before the next
+    rerun builds the widgets, which is the only point session state may be written."""
+    st.session_state[KW_KEY] = ""
+    st.session_state[SRC_KEY] = "All sources"
+    st.session_state[SENT_KEY] = "All sentiment"
+
 
 def render():
     df = load_enriched_df()
@@ -26,16 +37,21 @@ def render():
                      pill=f"{ui.fmt_full(len(df))} reviews"))
 
     # --- Filter bar (real Streamlit widgets, styled compact) ----------------
-    c1, c2, c3 = st.columns([3, 1, 1])
+    src_opts = ["All sources"] + [ui.SOURCE_META.get(s, (s, ""))[0] for s in df["source"].value_counts().index]
+    sent_opts = ["All sentiment", "Positive", "Neutral", "Negative"]
+
+    c1, c2, c3, c4 = st.columns([3, 1.15, 1.15, 0.75])
     kw = c1.text_input(
         "Search", placeholder="Search by keyword (e.g. fruits, expiry, Zepto)…",
-        label_visibility="collapsed",
+        label_visibility="collapsed", key=KW_KEY,
         help="Filters every panel on this tab to reviews whose text contains this word. "
              "Plain substring match, not semantic — 'expiry' will not match 'expired'.",
     )
-    src_opts = ["All sources"] + [ui.SOURCE_META.get(s, (s, ""))[0] for s in df["source"].value_counts().index]
-    src_sel = c2.selectbox("Source", src_opts, label_visibility="collapsed")
-    sent_sel = c3.selectbox("Sentiment", ["All sentiment", "Positive", "Neutral", "Negative"], label_visibility="collapsed")
+    src_sel = c2.selectbox("Source", src_opts, label_visibility="collapsed", key=SRC_KEY)
+    sent_sel = c3.selectbox("Sentiment", sent_opts, label_visibility="collapsed", key=SENT_KEY)
+    dirty = bool(kw.strip()) or src_sel != src_opts[0] or sent_sel != sent_opts[0]
+    c4.button("Reset", use_container_width=True, disabled=not dirty, on_click=_reset,
+              help="Clear the keyword, source and sentiment filters.")
 
     view = df
     if kw.strip():

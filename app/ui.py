@@ -235,6 +235,8 @@ _UI_CSS = f"""<style>
 
 /* Segment leaderboard + cards */
 .ui-seg-head {{ display:grid; grid-template-columns:26px 1fr 62px 64px; color:{FAINT}; font-size:10px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding-bottom:9px; border-bottom:1px solid {BORDER}; }}
+/* Rate/Reviews headers must right-align to sit over their right-aligned numbers. */
+.ui-seg-head div:nth-child(3), .ui-seg-head div:nth-child(4) {{ text-align:right; }}
 .ui-seg-row {{ display:grid; grid-template-columns:26px 1fr 62px 64px; align-items:center; padding:11px 0; border-bottom:1px solid {BORDER}; }}
 .ui-seg-rank {{ color:{FAINT}; font-size:13px; font-weight:700; }}
 .ui-seg-name {{ color:{TXT}; font-size:13px; font-weight:600; }}
