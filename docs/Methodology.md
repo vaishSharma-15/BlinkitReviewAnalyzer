@@ -115,18 +115,27 @@ nine themes each.
 
 ### In the Insight Engine chat: retrieving
 
-Asking a question runs five steps:
+The 4,110 filtered reviews are stored in a **vector database** — a search index that
+matches by meaning rather than by exact words. Only these reviews are in it; the ones
+dropped during cleaning and filtering are not.
+
+The flow is: **your question → vector database → matching reviews → one request to the
+AI → the answer you see.** Every answer therefore passes through the filtered reviews on
+its way to you.
+
+In detail, five steps:
 
 1. **The whole-corpus totals are handed to the AI** — every theme's size and average
    sentiment, plus each shopper segment's negative rate. These are the same counts the
    dashboard renders, so the two can't disagree.
-2. **The 8 most relevant real reviews are found** by meaning, not keyword — a question
-   about "expensive" surfaces reviews saying "overpriced" or "cheaper on Zepto".
+2. **The question goes to the vector database**, which returns the 8 closest reviews by
+   meaning — a question about "expensive" surfaces reviews saying "overpriced" or
+   "cheaper on Zepto", even though neither uses the word.
 3. **Those reviews go to the AI with their labels attached** — source, sentiment,
    barrier, theme, shopper type — which is why answers can name specific groups and
    categories instead of speaking in generalities.
 4. **The AI returns** a summary, the themes involved, who's affected, and
-   recommendations.
+   recommendations, in one request.
 5. **The quotes are listed underneath, numbered**, so every `[3]` in the answer links to
    the review behind it.
 
@@ -155,8 +164,9 @@ Four rules keep answers honest:
 
 ## 5. How we check the quality of the insights
 
-Quality is checked in two places: an automated report over the whole analysis, and rules
-built into the app so a bad answer can't reach the screen in the first place.
+Quality is checked in three ways: an automated report over the whole analysis, rules
+built into the app so a bad answer can't reach the screen, and reading the answers
+ourselves to confirm they match the evidence behind them.
 
 ### The quality report
 
@@ -214,6 +224,26 @@ anyone reading the report:
   such.
 - **Scale comes from counts, not impressions.** Prevalence claims must come from the
   corpus totals (§4), so "most users" reflects 4,110 reviews rather than eight.
+
+### Reading the answers
+
+The last check is done by a person, because some things only a reader can catch. We ask
+the engine real questions and read what comes back, checking three things:
+
+1. **Does the answer actually address the question asked**, or is it a general statement
+   about Blinkit that would fit any question?
+2. **Does each claim trace to a quote below it?** The numbered links make this quick —
+   click `[3]`, read review 3, confirm it says what the summary claims it says.
+3. **Do the themes named match the reviews retrieved?** If an answer is built on quotes
+   about expiry and freshness, it should be reporting Category-Specific Distrust — not a
+   theme those reviews don't carry.
+
+This is a manual spot-check, not a scored metric, and it is repeated whenever the way we
+ask the AI changes. It is how we caught two real problems: answers inventing their own
+theme names instead of ours, and answers describing complaints generically because the
+AI was only shown quote text with none of the labels attached. Both were fixed by
+changing what the AI receives — the enforced vocabulary and the labelled quotes described
+in §4.
 
 ---
 
