@@ -1,4 +1,4 @@
-"""Chat Terminal tab: a light Blinkit-palette RAG chat. Conversation is rendered as
+"""Insight Engine tab: a light Blinkit-palette RAG chat. Conversation is rendered as
 chat bubbles — the user's question right-aligned, the assistant's evidence-cited answer
 left-aligned — with clickable source citations. Empty state shows a centered hero and
 suggested-question chips, matching the spotify-discovery-intel copilot screen.
@@ -104,9 +104,9 @@ def render():
         structured = generate_structured_answer(query, evidence, matched)
         st.session_state.copilot_messages.append({"query": query, "structured": structured, "evidence": evidence})
 
-    ui.flush(ui.hero("message", "Chat Terminal", "How can I help your discovery research?",
-                     "I analyze thousands of real Blinkit reviews and discussions to answer product "
-                     "questions with evidence-backed, cited insight."))
+    ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
+                     "Trained on thousands of Blinkit reviews, Reddit threads and community "
+                     "discussions. Every answer is grounded in what real users actually said."))
 
     if not st.session_state.copilot_messages:
         st.markdown(f'<div class="ui-label">Suggested Questions</div>', unsafe_allow_html=True)

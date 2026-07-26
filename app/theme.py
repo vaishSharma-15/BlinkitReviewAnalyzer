@@ -24,7 +24,12 @@ import streamlit as st
 # border is the literal #E2E8F0 hardcoded in the CSS, not the `outline-variant` token),
 # and the exported code is what actually rendered in the reference screenshots.
 BACKGROUND = "#f7f9fb"
-SIDEBAR_BG = "#ffffff"
+# Sidebar carries a wash of the Blinkit brand yellow (#FFE141 in the official app
+# icon) rather than the flat white of the Stitch source. Kept far lighter than the
+# brand colour itself so 14px nav text still clears WCAG AA against it.
+SIDEBAR_BG = "#fff8d6"
+SIDEBAR_BORDER = "#f0dc8a"
+SIDEBAR_HOVER = "#fdf0b4"
 CARD_BG = "#ffffff"
 CARD_BORDER = "#E2E8F0"
 CARD_BORDER_HOVER = "#CBD5E1"
@@ -65,17 +70,21 @@ def inject_theme():
         html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
         .stApp {{ background-color: {BACKGROUND}; }}
 
-        /* Sidebar: light, hairline divider from the main area */
+        /* Sidebar: Blinkit-yellow wash, hairline divider from the main area */
         [data-testid="stSidebar"] {{
             background-color: {SIDEBAR_BG};
-            border-right: 1px solid {CARD_BORDER};
+            border-right: 1px solid {SIDEBAR_BORDER};
+        }}
+        [data-testid="stSidebar"] hr {{
+            border-color: {SIDEBAR_BORDER};
         }}
         [data-testid="stSidebar"] * {{
             color: {TEXT_MAIN} !important;
         }}
+        /* Warmer muted tone — plain grey reads as dirty against the yellow wash. */
         [data-testid="stSidebar"] [data-testid="stCaptionContainer"],
         [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * {{
-            color: {TEXT_MUTED} !important;
+            color: #6f6440 !important;
         }}
         [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
             color: {TEXT_MAIN} !important;
@@ -122,18 +131,30 @@ def inject_theme():
             font-weight: 500;
         }}
         [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {{
-            background-color: #f1f3f5;
+            background-color: {SIDEBAR_HOVER};
             color: {TEXT_MAIN} !important;
         }}
+        /* Active nav row is now white-on-yellow: the old pale-yellow fill would
+        disappear against the yellow sidebar. */
         [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {{
-            background-color: {PRIMARY_YELLOW_SOFT};
+            background-color: {CARD_BG};
             color: {TEXT_MAIN} !important;
             border: none;
-            border-left: 3px solid {PRIMARY_YELLOW};
+            border-left: 3px solid {ON_PRIMARY};
+            box-shadow: 0 1px 2px rgba(16,24,40,0.10);
             border-radius: 8px;
             text-align: left;
             justify-content: flex-start;
             font-weight: 700;
+        }}
+        /* Keep the active row white on hover — the global yellow .stButton hover
+        rule would otherwise repaint it solid brand yellow. */
+        [data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:hover,
+        [data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:focus,
+        [data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:active {{
+            background-color: {CARD_BG} !important;
+            border-left: 3px solid {ON_PRIMARY} !important;
+            color: {TEXT_MAIN} !important;
         }}
         [data-testid="stSidebar"] .stButton > button {{
             width: 100%;

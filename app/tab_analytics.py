@@ -1,4 +1,4 @@
-"""Analytics tab: 'Deep Discovery Analytics' — a light Blinkit-palette analytics board
+"""Analytics tab: 'Deep Analytics' — a light Blinkit-palette analytics board
 modelled on the spotify-discovery-intel reference. A keyword + source + sentiment filter
 bar narrows the corpus, and every panel below (sentiment split, barrier-load tiles,
 donut, theme lollipop, source bars, rating distribution, segment cards) recomputes from
@@ -16,7 +16,7 @@ def render():
         st.warning("No enriched data yet — run `python -m src.enrich` first.")
         return
 
-    ui.flush(ui.hero("bar-chart", "Analytics Dashboard", "Deep Discovery Analytics",
+    ui.flush(ui.hero("bar-chart", "Analytics Dashboard", "Deep Analytics",
                      "Sentiment, barriers and complaint rates from LLM-classified reviews. Filter by keyword, "
                      "source or sentiment — every panel updates together.",
                      pill=f"{ui.fmt_full(len(df))} reviews"))

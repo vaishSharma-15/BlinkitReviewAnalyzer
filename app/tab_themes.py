@@ -1,4 +1,4 @@
-"""Theme Intelligence tab: 'Discovery Themes & User Voice' — a light Blinkit-palette
+"""Theme Intelligence tab: 'Themes & User Voice' — a light Blinkit-palette
 theme board modelled on the spotify-discovery-intel reference. Three summary chips (most
 mentioned / most negative / most positive), a research-question coverage strip, then a
 2-column grid of theme cards, each with an average-sentiment gradient bar, mention stats,
@@ -24,7 +24,7 @@ def render():
     themes = themes_df.sort_values("rank_score", ascending=False).to_dict("records")
     total_corpus = sum(t["size"] for t in themes) or 1
 
-    ui.flush(ui.hero("layers", "Theme Intelligence", "Discovery Themes & User Voice",
+    ui.flush(ui.hero("layers", "Theme Intelligence", "Themes & User Voice",
                      "Every category barrier, classified from an LLM's reading of the reviews — ranked by "
                      "mentions, with the real user quotes behind each one.",
                      pill=f"{ui.fmt_full(total_corpus)} reviews"))

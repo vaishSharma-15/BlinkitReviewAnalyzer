@@ -2,9 +2,10 @@
 
 Four tabs, mirroring the Stitch-designed "Discovery Engine" product (see
 data/stitch_blinkit_review_discovery_engine/): Overview, Analytics, Theme
-Intelligence, Discovery Copilot. Each tab's rendering logic lives in its own
+Intelligence, Insight Engine. Each tab's rendering logic lives in its own
 app/tab_*.py module; this file is the nav shell + page config + theme injection.
 """
+import base64
 import json
 import sys
 from pathlib import Path
@@ -18,7 +19,21 @@ from app import tab_analytics, tab_copilot, tab_overview, tab_themes, ui  # noqa
 from app.theme import inject_theme  # noqa: E402
 from app.ui import inject_ui  # noqa: E402
 
-st.set_page_config(page_title="Blinkit Reviews Analyzer", page_icon="🛒", layout="wide")
+LOGO_PATH = ROOT / "app" / "assets" / "blinkit-logo.svg"
+
+
+@st.cache_data
+def _logo_data_uri() -> str:
+    """The real Blinkit app icon as a data: URI (see app/assets/README.md for licence).
+
+    Inlined rather than served via st.image so it can sit inside the sidebar's
+    flex header markup alongside the wordmark.
+    """
+    b64 = base64.b64encode(LOGO_PATH.read_bytes()).decode()
+    return f"data:image/svg+xml;base64,{b64}"
+
+
+st.set_page_config(page_title="Blinkit Reviews Analyzer", page_icon=str(LOGO_PATH), layout="wide")
 inject_theme()
 inject_ui()
 
@@ -27,7 +42,7 @@ PAGES = {
     "Overview": (":material/dashboard:", tab_overview),
     "Analytics": (":material/bar_chart:", tab_analytics),
     "Theme Intelligence": (":material/layers:", tab_themes),
-    "Chat Terminal": (":material/forum:", tab_copilot),
+    "Insight Engine": (":material/forum:", tab_copilot),
 }
 
 if "active_page" not in st.session_state:
@@ -37,11 +52,12 @@ with st.sidebar:
     st.markdown(
         f"""
         <div style="display:flex; align-items:center; gap:11px; padding: 6px 0 14px 0;">
-            <div style="width:38px;height:38px;background:#F8CB46;border-radius:9px;
-                        display:flex;align-items:center;justify-content:center;">{ui.icon("search", size=20, color="#191c1e")}</div>
+            <img src="{_logo_data_uri()}" alt="Blinkit" width="38" height="38"
+                 style="border-radius:9px;display:block;flex-shrink:0;
+                        box-shadow:0 1px 3px rgba(16,24,40,0.14);" />
             <div>
                 <div style="font-weight:800;letter-spacing:-0.01em;color:#16181d;font-size:14px;">Blinkit Reviews Analyzer</div>
-                <div style="font-size:10px;letter-spacing:0.08em;color:#9aa1ab;text-transform:uppercase;">Voice of Customer</div>
+                <div style="font-size:10px;letter-spacing:0.08em;color:#8a7c4a;text-transform:uppercase;">Voice of Customer</div>
             </div>
         </div>
         """,

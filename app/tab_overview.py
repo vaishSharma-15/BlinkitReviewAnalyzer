@@ -1,4 +1,4 @@
-"""Overview tab: a light 'Discovery Health Overview' dashboard in the Blinkit palette.
+"""Overview tab: a light 'Blinkit Reviews Discovery Engine' dashboard in the Blinkit palette.
 Every figure is computed from the real enriched corpus via app.ui helpers; the whole page
 is one HTML flush so grid alignment is exact.
 """
@@ -25,7 +25,7 @@ def render():
     classified = int((df["theme_id"] != "unclassified").sum())
 
     parts = [
-        ui.hero("grid", "Blinkit · Voice of Customer", "Discovery Health Overview",
+        ui.hero("grid", "Blinkit · Voice of Customer", "Blinkit Reviews Discovery Engine",
                 f"What real Blinkit reviewers reveal about why shoppers stay inside a few familiar "
                 f"categories — {ui.fmt_full(total)} public reviews, each classified by an LLM, not keyword rules.",
                 pill=f"{ui.fmt_full(total)} reviews analyzed"),
