@@ -4,10 +4,14 @@ bar narrows the corpus, and every panel below (sentiment split, barrier-load til
 donut, theme lollipop, source bars, rating distribution, segment cards) recomputes from
 the filtered view.
 """
+import re
+
 import streamlit as st
 
 from app import ui
 from app.data import load_enriched_df
+
+MATCH_LIMIT = 12
 
 
 def render():
@@ -23,14 +27,21 @@ def render():
 
     # --- Filter bar (real Streamlit widgets, styled compact) ----------------
     c1, c2, c3 = st.columns([3, 1, 1])
-    kw = c1.text_input("Search", placeholder="Search by keyword (e.g. fruits, expiry, Zepto)…", label_visibility="collapsed")
+    kw = c1.text_input(
+        "Search", placeholder="Search by keyword (e.g. fruits, expiry, Zepto)…",
+        label_visibility="collapsed",
+        help="Filters every panel on this tab to reviews whose text contains this word. "
+             "Plain substring match, not semantic — 'expiry' will not match 'expired'.",
+    )
     src_opts = ["All sources"] + [ui.SOURCE_META.get(s, (s, ""))[0] for s in df["source"].value_counts().index]
     src_sel = c2.selectbox("Source", src_opts, label_visibility="collapsed")
     sent_sel = c3.selectbox("Sentiment", ["All sentiment", "Positive", "Neutral", "Negative"], label_visibility="collapsed")
 
     view = df
     if kw.strip():
-        view = view[view["text"].str.contains(kw.strip(), case=False, na=False)]
+        # regex=False: the box is a plain keyword filter, and without this a query like
+        # "c++" or "*fresh" is compiled as a pattern and raises on the user.
+        view = view[view["text"].str.contains(kw.strip(), case=False, na=False, regex=False)]
     if src_sel != "All sources":
         name_to_src = {v[0]: k for k, v in ui.SOURCE_META.items()}
         if src_sel in name_to_src:
@@ -42,11 +53,30 @@ def render():
     elif sent_sel == "Negative":
         view = view[view["sentiment"] < -0.2]
 
+    with st.expander("How this filter bar works", expanded=False):
+        st.markdown(
+            "**Search** narrows the whole tab to reviews whose text contains your word — "
+            "a plain, case-insensitive substring match on the review body, so `expiry` "
+            "does not match `expired`, and it never searches theme or barrier labels. "
+            "For meaning-based questions, use the **Insight Engine** tab instead.\n\n"
+            "**Source** and **Sentiment** stack on top of the search, so "
+            "`fruits` + Play Store + Negative gives complaints about fruit from Play Store "
+            "reviewers only.\n\n"
+            "Every panel below — sentiment split, barrier load, donut, themes, rating "
+            "distribution, segments — recomputes from whatever the filters leave. "
+            "The matching reviews themselves appear directly beneath this bar once you "
+            "type a keyword.\n\n"
+            "*Try: `expiry`, `delivery`, `Zepto`, `refund`, `missing`.*"
+        )
+
     st.caption(f"Showing **{len(view):,}** of {len(df):,} reviews matching the current filters.")
 
     if view.empty:
         st.info("No reviews match these filters — widen the search.")
         return
+
+    if kw.strip():
+        ui.flush(_matches(view, kw.strip()))
 
     pos = (view["sentiment"] > 0.2).mean()
     neu = view["sentiment"].between(-0.2, 0.2).mean()
@@ -71,6 +101,53 @@ def render():
         '<div class="ui-row">', _segments(view), "</div>",
     ]
     ui.flush(parts)
+
+
+def _highlight(text: str, kw: str) -> str:
+    """Escape the review text, then wrap each case-insensitive hit in <mark>.
+
+    Escaping first means the <mark> tags are the only markup that survives; re.escape
+    keeps keywords like "3.5" or "c++" from being read as a pattern.
+    """
+    safe = ui.esc(text)
+    return re.sub(f"({re.escape(ui.esc(kw))})", r'<mark class="ui-mark">\1</mark>', safe, flags=re.I)
+
+
+def _matches(view, kw: str) -> str:
+    """The actual reviews behind the current keyword — the evidence for the panels below."""
+    if "date_parsed" in view.columns:
+        rows = view.sort_values("date_parsed", ascending=False, na_position="last")
+    else:
+        rows = view
+    cards = []
+    for _, r in rows.head(MATCH_LIMIT).iterrows():
+        name, color = ui.SOURCE_META.get(r["source"], (str(r["source"]).title(), ui.MUTED))
+        scol = ui.sentiment_color(r["sentiment"])
+        slabel = ui.sentiment_label(r["sentiment"])
+        text = r["text"] if len(r["text"]) <= 320 else r["text"][:320] + "…"
+        date = str(r["date"])[:10] if r.get("date") else ""
+        url = r.get("url") or ""
+        link = (f'<a class="ui-cite" href="{ui.esc(url)}" target="_blank" rel="noopener">'
+                f'{ui.icon("link", size=12, color=ui.YELLOW_DK)}view source</a>') if url else ""
+        barrier = r.get("barrier_type", "none")
+        btag = (f'<span class="ui-badge" style="color:{ui.MUTED};border-color:{ui.BORDER2};">'
+                f'{ui.esc(ui.BARRIER_LABELS.get(barrier, barrier))}</span>') if barrier and barrier != "none" else ""
+        cards.append(
+            f'<div class="ui-rev"><div class="ui-rev-head">'
+            f'<span><span class="ui-dot" style="background:{color};"></span>{name}</span>'
+            f'<span class="ui-rev-date">{date}</span></div>'
+            f'<div class="ui-rev-text">{_highlight(text, kw)}</div>'
+            f'<div class="ui-rev-foot" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+            f'<span class="ui-badge" style="color:{scol};border-color:{scol}55;background:{scol}12;">● {slabel}</span>'
+            f'{btag}{link}</div></div>')
+
+    shown = min(len(rows), MATCH_LIMIT)
+    more = (f' Showing the {shown} most recent — refine the filters to narrow further.'
+            if len(rows) > MATCH_LIMIT else "")
+    return (f'<div class="ui-card ui-row"><div class="ui-card-title">Matching Reviews</div>'
+            f'<div class="ui-card-sub">{ui.fmt_full(len(rows))} review(s) contain '
+            f'&ldquo;{ui.esc(kw)}&rdquo;.{more}</div>'
+            f'<div class="ui-g3">{"".join(cards)}</div></div>')
 
 
 def _feel_tile(icon_name, label, val, color):

@@ -75,17 +75,19 @@ with st.sidebar:
             st.session_state.active_page = page_name
             st.rerun()
 
-    st.divider()
-    # Demo account chip. Not authentication — the app has no login; this stands in for
-    # the signed-in user in walkthroughs.
+    # Demo account chip, pinned to the foot of the sidebar by .sb-user-foot's
+    # margin-top:auto. Not authentication — the app has no login; this stands in
+    # for the signed-in user in walkthroughs.
     st.markdown(
         """
+        <div class="sb-user-foot">
         <div class="sb-user">
             <div class="sb-user-av">GP</div>
             <div style="min-width:0;">
                 <div class="sb-user-name">Growth PM</div>
                 <div class="sb-user-role">Demo session</div>
             </div>
+        </div>
         </div>
         """,
         unsafe_allow_html=True,

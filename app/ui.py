@@ -287,6 +287,7 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
 .ui-rev-date {{ color:{FAINT}; font-weight:500; }}
 .ui-rev-text {{ color:{MUTED}; font-size:12px; line-height:1.5; min-height:52px; }}
 .ui-rev-foot {{ margin-top:10px; }}
+.ui-mark {{ background:{YELLOW}; color:{TXT}; padding:0 2px; border-radius:3px; font-weight:700; }}
 
 /* Year coverage */
 .ui-year {{ background:{CARD2}; border:1px solid {BORDER}; border-radius:10px; padding:14px; }}

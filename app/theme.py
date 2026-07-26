@@ -84,7 +84,18 @@ def inject_theme():
         /* Nav rows need breathing room now that the sidebar carries colour. */
         [data-testid="stSidebar"] .stButton {{ margin-bottom: 4px; }}
 
-        /* Demo account chip pinned under the divider */
+        /* Push the account chip to the foot of the sidebar: make the sidebar's content
+        column full-height, then let the chip's wrapper absorb the slack above it. */
+        [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {{
+            min-height: calc(100vh - 7rem);
+        }}
+        /* :has() is needed because the chip is wrapped in Streamlit's own
+        stElementContainer — that wrapper, not .sb-user-foot itself, is the flex child
+        that has to absorb the slack. */
+        [data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.sb-user-foot) {{
+            margin-top: auto;
+        }}
+        .sb-user-foot {{ padding-top: 18px; }}
         .sb-user {{
             display: flex; align-items: center; gap: 10px;
             background: rgba(255,255,255,0.72);
