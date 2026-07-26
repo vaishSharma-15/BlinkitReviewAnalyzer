@@ -94,12 +94,15 @@ figure is counted from the labels — nothing is estimated or written by AI at t
 
 **In the Insight Engine chat**, asking a question:
 
-1. Finds the 8 most relevant real reviews.
-2. Passes them to the AI *with their labels attached* — source, sentiment, barrier,
+1. Hands the AI the whole-corpus totals — every theme's size and each shopper segment's
+   negative rate, the same counts the dashboard shows — so claims about scale ("most",
+   "widespread") come from all 4,110 reviews, not from a handful of quotes.
+2. Finds the 8 most relevant real reviews.
+3. Passes them to the AI *with their labels attached* — source, sentiment, barrier,
    theme, shopper type. This is why answers can name specific groups and categories
    instead of speaking in generalities.
-3. Gets back a summary, the themes involved, who's affected, and recommendations.
-4. Shows the quotes underneath, numbered, so every claim links to the review behind it.
+4. Gets back a summary, the themes involved, who's affected, and recommendations.
+5. Shows the quotes underneath, numbered, so every claim links to the review behind it.
 
 Three rules keep answers honest:
 

@@ -144,6 +144,62 @@ SEGMENT_DISPLAY = {
 }
 
 
+@st.cache_data(show_spinner=False)
+def corpus_stats() -> dict:
+    """Whole-corpus aggregates: theme sizes and per-segment negative rates.
+
+    Retrieval only ever surfaces 8 quotes, which says what users said but nothing about
+    how widespread it is. These are the same counts the dashboard renders, so a chat
+    answer and the Overview tab cannot disagree about scale.
+    """
+    db = get_db()
+    out = {"total": 0, "themes": [], "segments": []}
+    if db is None:
+        return out
+    tables = db.list_tables().tables
+    if "themes" in tables:
+        rows = db.open_table("themes").to_pandas().sort_values("size", ascending=False)
+        out["themes"] = [
+            {"name": r["name"], "size": int(r["size"]), "avg_sentiment": round(float(r["avg_sentiment"]), 2)}
+            for _, r in rows.iterrows()
+        ]
+    if "evidence" in tables:
+        df = db.open_table("evidence").to_pandas()
+        out["total"] = len(df)
+        for field in ["family_stage", "city_tier", "price_sensitivity", "has_pet"]:
+            if field not in df.columns:
+                continue
+            known = df[df[field] != "unknown"]
+            for value, grp in known.groupby(field):
+                label = SEGMENT_DISPLAY.get((field, value))
+                # Same floor the dashboard uses, so tiny groups don't post wild rates.
+                if label and len(grp) >= 10:
+                    out["segments"].append({
+                        "name": label, "n": len(grp),
+                        "negative_rate": round(float((grp["sentiment"] < -0.2).mean()), 3),
+                    })
+    out["segments"].sort(key=lambda s: -s["negative_rate"])
+    return out
+
+
+def _stats_block(stats: dict) -> str:
+    if not stats.get("themes") and not stats.get("segments"):
+        return ""
+    # Shares are of themed reviews, matching how the Theme Intelligence tab states them —
+    # quoting a share of the full corpus instead would read as contradicting the dashboard.
+    themed_total = sum(t["size"] for t in stats["themes"]) or 1
+    lines = [f"CORPUS TOTALS (all {stats['total']} analysed reviews, not just the quotes below):",
+             f"Theme sizes ({themed_total} reviews carry a theme; shares are of that):"]
+    for t in stats["themes"]:
+        share = t["size"] / themed_total * 100
+        lines.append(f"  - {t['name']}: {t['size']} reviews ({share:.1f}% of themed), avg sentiment {t['avg_sentiment']}")
+    if stats["segments"]:
+        lines.append("Negative-sentiment rate by shopper segment:")
+        for s in stats["segments"]:
+            lines.append(f"  - {s['name']}: {s['negative_rate']:.0%} negative across {s['n']} reviews")
+    return "\n".join(lines)
+
+
 def ui_sentiment(score: float) -> str:
     return "positive" if score > 0.2 else ("negative" if score < -0.2 else "neutral")
 
@@ -214,6 +270,13 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 "affected_segments MUST use only these exact labels, and only where the quotes "
                 f"actually show that group: {', '.join(SEGMENT_CHOICES)}. "
                 "Do not invent new theme or segment labels; return an empty list if none apply. "
+                "Two kinds of input follow. CORPUS TOTALS are counts over every analysed "
+                "review — use them for any claim about scale, prevalence, ranking or which "
+                "group is 'most' anything, and quote the figure. The numbered EVIDENCE "
+                "quotes are what users actually said — use them for the substance of the "
+                "answer and cite them as [n]. Never infer prevalence from how many of the "
+                "quotes mention something, and never state a number that is not in the "
+                "corpus totals. "
                 "Be specific, not generic: answer the question that was asked directly in the "
                 "first sentence, and use the concrete detail in the quotes and their metadata — "
                 "name the actual categories, products, competitors, segments and sources the "
@@ -225,9 +288,12 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 "fields, which must stay strictly evidence-grounded) — each must respond to a "
                 "specific problem in the quotes, naming it, not restate a generic best practice."
             )
-            # v5: context now carries per-quote metadata and the specificity rules changed,
-            # so the on-disk cache must not serve v3/v4 answers.
-            raw = call_llm(system_prompt, f"Question: {query}\n\nEvidence:\n{context}", "rag-answer-v5", json_mode=True)
+            stats_block = _stats_block(corpus_stats())
+            user_content = (f"Question: {query}\n\n{stats_block}\n\nEVIDENCE:\n{context}"
+                            if stats_block else f"Question: {query}\n\nEvidence:\n{context}")
+            # v6: corpus totals added to the context, so cached v3-v5 answers (which were
+            # written without any prevalence data) must not be served.
+            raw = call_llm(system_prompt, user_content, "rag-answer-v6", json_mode=True)
             if raw:
                 import json
                 import re
@@ -264,6 +330,19 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
     sources = Counter(e["source"] for e in evidence)
     if len(sources) == 1:
         summary += f" ⚠️ All evidence comes from a single source ({next(iter(sources))}) — low confidence until other sources are enriched."
+
+    # Ground the retrieved sample in the whole corpus, so this path also reports scale
+    # rather than describing 8 quotes as though they were the population.
+    stats = corpus_stats()
+    if stats.get("themes"):
+        top = stats["themes"][0]
+        themed_total = sum(t["size"] for t in stats["themes"]) or 1
+        summary += (f" Across all {stats['total']:,} analysed reviews, the largest theme is "
+                    f"{top['name']} ({top['size']:,} reviews, {top['size'] / themed_total:.0%} of themed).")
+    if stats.get("segments"):
+        worst = stats["segments"][0]
+        summary += (f" The segment with the highest negative rate is {worst['name']} "
+                    f"({worst['negative_rate']:.0%} of {worst['n']:,} reviews).")
 
     # Themes come from the matched taxonomy rows; the barrier fallback is coerced to the
     # same theme vocabulary so this path can never print a label the other tabs lack.
