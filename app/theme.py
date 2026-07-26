@@ -94,18 +94,12 @@ def inject_theme():
         [data-testid="stSidebarUserContent"] {{
             padding-bottom: 1.5rem !important;
         }}
+        /* Sized so the stretched block plus the flex gap below its last child still fits
+        inside the sidebar. Nothing is clipped here: an earlier overflow:hidden cut the
+        bottom off the account chip, and the scrollbar it was hiding came from the 96px
+        of bottom padding trimmed just above, not from real overflow. */
         [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {{
-            min-height: calc(100vh - 9rem);
-        }}
-        /* The stretched block sits ~16px past its own box (flex gap below the last
-        child), which is empty space but still raises a scrollbar. Clip it only where
-        the nav genuinely fits; on short viewports scrolling must stay available. */
-        @media (min-height: 620px) {{
-            [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"],
-            [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] > div,
-            [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {{
-                overflow: hidden !important;
-            }}
+            min-height: calc(100vh - 8rem);
         }}
         /* :has() is needed because the chip is wrapped in Streamlit's own
         stElementContainer — that wrapper, not .sb-user-foot itself, is the flex child
