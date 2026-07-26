@@ -238,6 +238,41 @@ def inject_theme():
             padding-top: 10px !important;
             padding-bottom: 10px !important;
             height: auto !important;
+            background-color: transparent !important;
+            /* Magnifier drawn in the field itself — Streamlit's text_input has no icon
+            slot, and without it the box reads as an empty panel rather than a search. */
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 24 24' fill='none' stroke='%235f5e5e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>") !important;
+            background-repeat: no-repeat !important;
+            background-position: 13px center !important;
+            padding-left: 40px !important;
+        }}
+        /* The field was a grey box with a same-colour border on a near-grey page. White
+        fill plus a real border makes it read as an input at a glance. */
+        [data-testid="stTextInput"] div[data-baseweb="input"],
+        [data-testid="stTextInput"] div[data-baseweb="base-input"] {{
+            background-color: {CARD_BG} !important;
+            border: 1.5px solid {CARD_BORDER_HOVER} !important;
+            border-radius: 9px !important;
+            box-shadow: 0 1px 2px rgba(16,24,40,0.05);
+        }}
+        [data-testid="stTextInput"] div[data-baseweb="input"]:hover,
+        [data-testid="stTextInput"] div[data-baseweb="base-input"]:hover {{
+            border-color: {PRIMARY_YELLOW_DIM} !important;
+        }}
+        [data-testid="stTextInput"] input::placeholder {{
+            color: #6b7280 !important;
+            opacity: 1 !important;
+        }}
+        /* Selects get the same white fill and edge, so the filter row reads as one
+        control group rather than a white box beside two grey ones. */
+        [data-testid="stSelectbox"] div[data-baseweb="select"] > div {{
+            background-color: {CARD_BG} !important;
+            border: 1.5px solid {CARD_BORDER_HOVER} !important;
+            border-radius: 9px !important;
+            box-shadow: 0 1px 2px rgba(16,24,40,0.05);
+        }}
+        [data-testid="stSelectbox"] div[data-baseweb="select"] > div:hover {{
+            border-color: {PRIMARY_YELLOW_DIM} !important;
         }}
         /* Focus ring in brand yellow instead of Streamlit's default red. */
         [data-testid="stTextInput"] div[data-baseweb="input"]:focus-within,
