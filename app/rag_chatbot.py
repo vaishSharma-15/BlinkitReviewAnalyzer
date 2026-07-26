@@ -85,7 +85,7 @@ with st.sidebar:
             <div class="sb-user-av">GP</div>
             <div style="min-width:0;">
                 <div class="sb-user-name">Growth PM</div>
-                <div class="sb-user-role">Demo session</div>
+                <div class="sb-user-role">Blinkit · India</div>
             </div>
         </div>
         </div>
