@@ -80,16 +80,81 @@ BARRIER_TO_RECOMMENDATION = {
 }
 
 
+# --- Shared vocabulary -----------------------------------------------------
+# The chat answer must speak the same language as the Overview/Theme tabs, so its
+# theme and segment labels are drawn from the same fixed sets the enrichment pipeline
+# uses (src/schemas.py THEMES + the four segment dimensions), rendered with the display
+# names the dashboard shows. Without this the LLM invents a fresh vocabulary per
+# question ("Search functionality", "Users searching for specific items") that appears
+# nowhere in the corpus and matches nothing on the other tabs.
+THEME_CHOICES = [
+    "Platform Mental Model", "Category-Specific Distrust", "First-Trial Stories",
+    "Habit & Reorder", "Discovery Mechanics", "Assortment Gaps", "Price & Value",
+    "Life-Event Triggers", "Cross-Platform Comparison",
+]
+
+SEGMENT_CHOICES = [
+    "Price-Sensitive", "Price-Insensitive", "Parents", "Singles", "Couples",
+    "Pet Owners", "Metro", "Tier-2 City",
+]
+
+# Which theme a barrier label belongs under, so the extractive path's barrier counts can
+# be reported in theme vocabulary instead of raw enrichment keys like "trust_quality".
+BARRIER_TO_THEME = {
+    "trust_quality": "Category-Specific Distrust",
+    "price_premium": "Price & Value",
+    "assortment_doubt": "Assortment Gaps",
+    "findability": "Discovery Mechanics",
+    "no_trigger": "Platform Mental Model",
+    "returns_risk": "Category-Specific Distrust",
+    "brand_absence": "Assortment Gaps",
+    "expiry_freshness": "Category-Specific Distrust",
+    "prefer_specialist_store": "Cross-Platform Comparison",
+}
+
+
+def _coerce(values, allowed: List[str]) -> List[str]:
+    """Keep only labels from `allowed`, matched case/punctuation-insensitively.
+
+    The prompt constrains the model, but a constraint that is only asked for is not a
+    guarantee — this is what actually keeps an off-vocabulary label out of the UI.
+    """
+    def norm(s):
+        return "".join(ch for ch in str(s).lower() if ch.isalnum())
+
+    lookup = {norm(a): a for a in allowed}
+    out = []
+    for v in values or []:
+        hit = lookup.get(norm(v))
+        if hit and hit not in out:
+            out.append(hit)
+    return out
+
+
+# Enrichment values -> the display labels the dashboard uses (app/tab_overview.SEG_LABELS).
+SEGMENT_DISPLAY = {
+    ("price_sensitivity", "high"): "Price-Sensitive",
+    ("price_sensitivity", "low"): "Price-Insensitive",
+    ("family_stage", "parent_young_child"): "Parents",
+    ("family_stage", "single"): "Singles",
+    ("family_stage", "couple"): "Couples",
+    ("has_pet", "yes"): "Pet Owners",
+    ("city_tier", "metro"): "Metro",
+    ("city_tier", "tier2"): "Tier-2 City",
+}
+
+
 def _segment_labels(evidence: List[dict]) -> List[str]:
+    """Dominant segment per dimension, named exactly as the Overview tab names it."""
     labels = []
-    for field, prefix in [
-        ("family_stage", ""), ("city_tier", ""), ("price_sensitivity", "price sensitivity: "),
-        ("has_pet", "has pet: "),
-    ]:
+    for field in ["family_stage", "city_tier", "price_sensitivity", "has_pet"]:
         counts = Counter(e[field] for e in evidence if e.get(field, "unknown") != "unknown")
-        if counts:
-            top_value, n = counts.most_common(1)[0]
-            labels.append(f"{prefix}{top_value} ({n} items)")
+        if not counts:
+            continue
+        top_value, _ = counts.most_common(1)[0]
+        label = SEGMENT_DISPLAY.get((field, top_value))
+        if label and label not in labels:
+            labels.append(label)
     return labels
 
 
@@ -122,14 +187,20 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 "use outside knowledge for the summary/themes/segments. Respond with ONLY a "
                 "JSON object, no markdown fences: "
                 '{"executive_summary": "2-3 sentence answer citing [n] evidence numbers", '
-                '"theme_breakdown": ["short theme label", ...], '
-                '"affected_segments": ["short segment description", ...], '
+                '"theme_breakdown": ["theme label", ...], '
+                '"affected_segments": ["segment label", ...], '
                 '"product_recommendations": ["short, directional product recommendation", ...]}. '
+                "theme_breakdown MUST use only these exact labels, and only those actually "
+                f"evidenced in the quotes: {', '.join(THEME_CHOICES)}. "
+                "affected_segments MUST use only these exact labels, and only where the quotes "
+                f"actually show that group: {', '.join(SEGMENT_CHOICES)}. "
+                "Do not invent new theme or segment labels; return an empty list if none apply. "
                 "product_recommendations may reflect your own product judgment (unlike the other "
                 "fields, which must stay strictly evidence-grounded) — keep each one short and "
                 "directional, not a detailed spec."
             )
-            raw = call_llm(system_prompt, f"Question: {query}\n\nEvidence:\n{context}", "rag-answer-v3", json_mode=True)
+            # v4: prompt vocabulary changed, so the on-disk cache must not serve v3 answers.
+            raw = call_llm(system_prompt, f"Question: {query}\n\nEvidence:\n{context}", "rag-answer-v4", json_mode=True)
             if raw:
                 import json
                 import re
@@ -138,8 +209,9 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 data = json.loads(cleaned)
                 return {
                     "executive_summary": data.get("executive_summary", ""),
-                    "theme_breakdown": data.get("theme_breakdown", []),
-                    "affected_segments": data.get("affected_segments", []),
+                    # Enforced, not merely requested — see _coerce.
+                    "theme_breakdown": _coerce(data.get("theme_breakdown"), THEME_CHOICES),
+                    "affected_segments": _coerce(data.get("affected_segments"), SEGMENT_CHOICES),
                     "product_recommendations": data.get("product_recommendations", []),
                     "method": "gemini",
                 }
@@ -166,8 +238,10 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
     if len(sources) == 1:
         summary += f" ⚠️ All evidence comes from a single source ({next(iter(sources))}) — low confidence until other sources are enriched."
 
-    theme_breakdown = [t["name"] for t in matched_themes] or (
-        [f"{k} ({v} items)" for k, v in barrier_counts.most_common(3)]
+    # Themes come from the matched taxonomy rows; the barrier fallback is coerced to the
+    # same theme vocabulary so this path can never print a label the other tabs lack.
+    theme_breakdown = _coerce([t["name"] for t in matched_themes], THEME_CHOICES) or _coerce(
+        [BARRIER_TO_THEME.get(k, "") for k, _ in barrier_counts.most_common(3)], THEME_CHOICES
     )
     recommendations = [
         BARRIER_TO_RECOMMENDATION[b] for b, _ in barrier_counts.most_common(3) if b in BARRIER_TO_RECOMMENDATION

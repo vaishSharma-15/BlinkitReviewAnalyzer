@@ -320,5 +320,7 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
 /* Clickable citation link */
 .ui-cite {{ color:{YELLOW_DK}; font-size:11px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }}
 .ui-cite:hover {{ text-decoration:underline; }}
+/* [n] marker tying an evidence card to the [n] citations in the summary above. */
+.ui-citenum {{ background:{TXT}; color:{YELLOW}; font-size:11px; font-weight:800; font-family:monospace; padding:1px 6px; border-radius:5px; }}
 .ui-secline {{ color:{FAINT}; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; margin:16px 0 8px; display:flex; align-items:center; gap:6px; }}
 </style>"""

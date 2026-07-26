@@ -57,8 +57,13 @@ def _render_message(msg):
         body.append(_seclabel("Product Recommendations") + recs)
 
     if evidence:
-        body.append(_seclabel("Supporting Evidence"))
-        for e in evidence[:5]:
+        # Every retrieved quote is listed and numbered: the summary cites [n] against the
+        # numbering the model was given (rag_engine builds its context as [1]..[k]), so
+        # truncating this list to 5 left citations like [7] pointing at nothing.
+        body.append(_seclabel("Supporting Evidence")
+                    + f'<div style="color:{ui.FAINT};font-size:11px;margin:-4px 0 8px;">'
+                      f'Numbers in the summary above refer to these quotes.</div>')
+        for i, e in enumerate(evidence, start=1):
             name, color = ui.SOURCE_META.get(e["source"], (e["source"].title(), ui.MUTED))
             scol = ui.sentiment_color(e["sentiment"])
             slabel = ui.sentiment_label(e["sentiment"])
@@ -69,6 +74,7 @@ def _render_message(msg):
                     f'{ui.icon("link", size=12, color=ui.YELLOW_DK)}view source</a>') if url else ""
             body.append(f'<div style="border-left:2px solid {color};padding:2px 0 2px 12px;margin:10px 0;">'
                         f'<div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">'
+                        f'<span class="ui-citenum">[{i}]</span>'
                         f'<span class="ui-badge" style="color:{color};border-color:{color}55;background:{color}12;">{name}</span>'
                         f'<span style="color:{scol};font-size:12px;font-style:italic;">{slabel}</span>'
                         f'<span style="color:{ui.FAINT};font-size:11px;font-family:monospace;">{ui.esc(tag)}</span></div>'
