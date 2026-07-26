@@ -88,67 +88,132 @@ a theme to make the numbers look tidier.
 
 ## 4. How insights are generated
 
-**On the dashboard**, each theme is scored on three things: how often it appears, how
-strongly people feel about it, and how directly it answers the research questions. Every
-figure is counted from the labels — nothing is estimated or written by AI at this stage.
+Everything shown anywhere in the app is built from the 4,110 cleaned, labelled reviews.
+Nothing draws on raw uncleaned data, and nothing draws on what the AI happens to know
+about Blinkit from elsewhere.
 
-**In the Insight Engine chat**, asking a question:
+### On the dashboard: counting
 
-1. Hands the AI the whole-corpus totals — every theme's size and each shopper segment's
-   negative rate, the same counts the dashboard shows — so claims about scale ("most",
-   "widespread") come from all 4,110 reviews, not from a handful of quotes.
-2. Finds the 8 most relevant real reviews.
-3. Passes them to the AI *with their labels attached* — source, sentiment, barrier,
-   theme, shopper type. This is why answers can name specific groups and categories
-   instead of speaking in generalities.
-4. Gets back a summary, the themes involved, who's affected, and recommendations.
-5. Shows the quotes underneath, numbered, so every claim links to the review behind it.
+The dashboard is pure arithmetic over the labels — **no AI runs at this stage at all**,
+so the same data always produces the same page. Themes are ranked on three factors
+multiplied together:
 
-Three rules keep answers honest:
+| Factor | Means | Example: Category-Specific Distrust |
+|---|---|---|
+| How common | Share of the corpus | 36% of all reviews |
+| How strongly felt | Distance from neutral, either direction | −0.73 (strongly negative) |
+| How relevant | Does it answer the research questions, and does it involve competitor comparisons | Highest weighting |
 
-- The AI may only use themes and shopper groups from our fixed lists, so chat and
-  dashboard always use the same language. Anything else it invents is filtered out.
-- Summaries, themes and groups must come from the retrieved reviews — not the AI's
-  general knowledge. Recommendations are the one place its own judgment is allowed.
-- If the AI is unavailable, the app falls back to a summary built purely from the
-  labels, and says so.
+Distance from neutral counts in *either* direction on purpose: a strongly positive
+theme like Habit & Reorder (+0.76) is as informative as a strongly negative one — they
+just answer different questions.
+
+That produces the running order: Category-Specific Distrust ranks far above everything
+else, then Habit & Reorder, then Price & Value. Each theme is also matched to the
+research questions it answers — **all eight are currently answered**, by between one and
+nine themes each.
+
+### In the Insight Engine chat: retrieving
+
+Asking a question runs five steps:
+
+1. **The whole-corpus totals are handed to the AI** — every theme's size and average
+   sentiment, plus each shopper segment's negative rate. These are the same counts the
+   dashboard renders, so the two can't disagree.
+2. **The 8 most relevant real reviews are found** by meaning, not keyword — a question
+   about "expensive" surfaces reviews saying "overpriced" or "cheaper on Zepto".
+3. **Those reviews go to the AI with their labels attached** — source, sentiment,
+   barrier, theme, shopper type — which is why answers can name specific groups and
+   categories instead of speaking in generalities.
+4. **The AI returns** a summary, the themes involved, who's affected, and
+   recommendations.
+5. **The quotes are listed underneath, numbered**, so every `[3]` in the answer links to
+   the review behind it.
+
+The reason for step 1 is worth stating plainly. Eight quotes tell you *what* people say,
+but nothing about *how many* people say it. Without the totals, a question like "which
+segment is most frustrated?" would be answered from whichever eight reviews came back.
+With them, it is answered from all 667 price-sensitive reviews. So:
+
+> **Totals answer "how much". Quotes answer "what".** The AI is told to use the totals
+> for any claim about scale or ranking, never to infer prevalence from how many of its
+> eight quotes mention something, and never to state a number that isn't in the totals.
+
+Four rules keep answers honest:
+
+- **Fixed vocabulary.** The AI may only name themes and shopper groups from our lists,
+  so chat and dashboard speak the same language. Anything else it invents is stripped
+  out before display — the instruction alone isn't trusted.
+- **Evidence-bound.** Summaries, themes and groups must come from the retrieved reviews,
+  not the AI's general knowledge.
+- **One honest exception.** Recommendations are the single place the AI's own judgment
+  is allowed, because a recommendation is by definition not something a reviewer said.
+- **Graceful failure.** If the AI is unavailable, the app answers from the labels and
+  totals alone — never a fabricated summary — and states which method it used.
 
 ---
 
 ## 5. How we check the quality of the insights
 
-Every claim gets checked by an automated report we can re-run at any time
-(`reports/scorecard.md`). Six checks matter most:
+Quality is checked in two places: an automated report over the whole analysis, and rules
+built into the app so a bad answer can't reach the screen in the first place.
 
-**Do the same reviews get the same themes twice?**
-We re-ran the theme sorting on a fresh sample, ignoring any saved results, so it was a
-genuine second opinion. It agreed with the first pass **83% of the time** — about one
-review in six would land differently. Theme sizes are solid enough to rank, but should
-be read as approximate, not exact.
+### The quality report
 
-**Does each theme appear in more than one place?**
-A theme found only in Play Store reviews could be an artifact of that one channel. **All
-9 themes appear across at least two independent sources.**
+One command regenerates it (`reports/scorecard.md`), so these are repeatable checks, not
+a one-off review. Each asks a specific question:
 
-**Are the quotes real?**
-We sampled 20 quotes shown as evidence and checked each one against its original review.
-**100% matched word for word**, with **100% working links** back to the source. Quotes
-are never paraphrased or reconstructed.
+| Question | Method | Result |
+|---|---|---|
+| Are themes repeatable? | Re-sort a fresh sample, ignoring saved results | **83% agreement** (90 reviews) |
+| Is each theme in more than one source? | Count distinct sources per theme | **9 of 9** pass |
+| Are the quotes real? | Match each against its original review | **100%** exact, **100%** valid links (20 quotes) |
+| Does contrary evidence exist? | Search for reviews that contradict each theme | Found for **all 9** themes |
+| Are complaints current? | Compare older vs. newer half | Stable; largest shift **+7 points** |
+| Is a theme leaning on one source? | Flag anything ≥90% from one place | **5 themes** flagged |
 
-**Did we go looking for evidence against ourselves?**
-For every theme, we search the full set for reviews that contradict it — same category,
-opposite sentiment — and report what we find. Category distrust has 160 reviews pointing
-the other way; price complaints have 452. This stops a common theme from being presented
-as if everyone agrees.
+**Are themes repeatable?** We re-ran the theme sorting on a fresh sample with saved
+results ignored, so it was a genuine second opinion rather than a replay. It agreed with
+the first pass **83% of the time** — about one review in six would land differently.
+That is good enough to rank themes confidently, but theme sizes should be read as
+approximate rather than exact.
 
-**Are the complaints current?**
-We split the reviews into an older and newer half and compared. Themes are broadly
-stable; the biggest movement is category distrust rising about 7 points, so it is a
-current problem, not a legacy one.
+**Is each theme in more than one source?** A theme visible only in Play Store reviews
+could be an artifact of that channel rather than a real pattern. **All 9 appear in at
+least two independent sources** — though see the caveat below about how lopsided that
+balance is.
 
-**Is any theme leaning on a single source?**
-The report flags any theme where 90%+ of evidence comes from one place. Five themes are
-flagged, all leaning on Play Store reviews — noted below.
+**Are the quotes real?** We took 20 quotes shown as evidence and checked each against its
+original review. **100% matched word for word**, with **100% working links** back to the
+source. Quotes are never paraphrased, shortened misleadingly, or reconstructed — this
+check has to come back perfect or the evidence trail is broken.
+
+**Does contrary evidence exist?** For every theme we deliberately search for reviews that
+contradict it — same product category, opposite sentiment — and report what turns up.
+Category distrust has **160** reviews pointing the other way; price complaints have
+**452**. The point is to stop a common theme being presented as though everyone agrees.
+
+**Are complaints current?** We split the reviews into older and newer halves and compared
+theme shares. Themes are broadly stable, and the largest movement is category distrust
+rising about **7 points** — so it is a live problem, not a legacy one being recycled.
+
+**Is a theme leaning on one source?** The report flags any theme drawing 90%+ of its
+evidence from a single place. **Five are flagged**, all leaning on Play Store reviews.
+That flag is why the first caveat below exists.
+
+### Checks built into the app
+
+Three guardrails run every time an answer is produced, so quality doesn't depend on
+anyone reading the report:
+
+- **Vocabulary is enforced, not requested.** The AI is told to use only our nine themes
+  and eight shopper groups — and anything outside those lists is removed from its answer
+  before display. It cannot invent a category that exists nowhere in the data.
+- **Every claim is traceable.** Each numbered citation in an answer links to the actual
+  review it came from, listed underneath. A claim with no quote behind it is visible as
+  such.
+- **Scale comes from counts, not impressions.** Prevalence claims must come from the
+  corpus totals (§4), so "most users" reflects 4,110 reviews rather than eight.
 
 ---
 
