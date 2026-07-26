@@ -31,10 +31,14 @@ def render():
         st.warning("No enriched data yet — run `python -m src.enrich` first.")
         return
 
-    ui.flush(ui.hero("bar-chart", "Analytics Dashboard", "Deep Analytics",
-                     "Sentiment, barriers and complaint rates from LLM-classified reviews. Filter by keyword, "
-                     "source or sentiment — every panel updates together.",
-                     pill=f"{ui.fmt_full(len(df))} reviews"))
+    # The filter row is a Streamlit widget block, which carries no top margin of its own —
+    # without this spacer it sits flush against the hero card. Other tabs get their gap
+    # from the .ui-label that follows their hero.
+    ui.flush([ui.hero("bar-chart", "Analytics Dashboard", "Deep Analytics",
+                      "Sentiment, barriers and complaint rates from LLM-classified reviews. Filter by keyword, "
+                      "source or sentiment — every panel updates together.",
+                      pill=f"{ui.fmt_full(len(df))} reviews"),
+              '<div style="height:20px;"></div>'])
 
     # --- Filter bar (real Streamlit widgets, styled compact) ----------------
     src_opts = ["All sources"] + [ui.SOURCE_META.get(s, (s, ""))[0] for s in df["source"].value_counts().index]
