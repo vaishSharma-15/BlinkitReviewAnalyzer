@@ -2,6 +2,7 @@
 sidebar for the index-status check). Kept separate from tab rendering so the retrieval
 logic has no Streamlit-widget code mixed into it.
 """
+import json
 import os
 from collections import Counter
 from pathlib import Path
@@ -270,6 +271,30 @@ def is_out_of_retrieval_range(evidence: List[dict]) -> bool:
     the corpus is about this. Missing distances (a non-vector path) never trip the gate."""
     distances = [e["_distance"] for e in evidence if e.get("_distance") is not None]
     return bool(distances) and min(distances) > OUT_OF_SCOPE_FLOOR
+
+
+def clear_answer_cache() -> int:
+    """Delete the on-disk LLM cache entries for chat answers, and return how many went.
+
+    Deliberately narrow. data/cache holds every LLM call the project has ever made, and
+    the overwhelming majority are enrichment batches (v1/v2-batch/v3-batch) that cost
+    thousands of Gemini calls to produce and are not regenerable within a daily quota —
+    at last count 1,130 of 1,146 files. Only the rag-answer-* entries, which are cheap
+    and re-earned on the next question, are removed here.
+    """
+    from src.llm import CACHE_DIR
+
+    removed = 0
+    if not CACHE_DIR.exists():
+        return 0
+    for path in CACHE_DIR.glob("*.json"):
+        try:
+            if json.loads(path.read_text(encoding="utf-8")).get("prompt_version", "").startswith("rag-answer"):
+                path.unlink()
+                removed += 1
+        except (OSError, ValueError):
+            continue  # an unreadable or half-written cache entry is not ours to fix here
+    return removed
 
 
 def generate_structured_answer(query: str, evidence: List[dict], matched_themes: List[dict]) -> dict:

@@ -75,6 +75,27 @@ with st.sidebar:
             st.session_state.active_page = page_name
             st.rerun()
 
+    # Clearing the cache is a demo/authoring affordance, not a shopper-facing one: the
+    # dashboard's own figures are cached per session, and a chat answer is cached on disk
+    # against its prompt version, so after an edit to either you otherwise have to reboot
+    # the app to see the change. Only chat answers are dropped from the disk cache — see
+    # rag_engine.clear_answer_cache for why the enrichment entries are left alone.
+    # Its own container so the CSS can set it apart from the nav rows above, which are
+    # otherwise the identical transparent secondary button.
+    with st.container(key="sb_cache"):
+        if st.button("Clear cache", icon=":material/refresh:", use_container_width=True,
+                     key="clear_cache", help="Drop cached dashboard figures and chat answers, "
+                                             "and start a fresh conversation."):
+            from app.rag_engine import clear_answer_cache
+
+            removed = clear_answer_cache()
+            st.cache_data.clear()  # not cache_resource: that holds the embedding model and
+            # the LanceDB handle, which cost seconds to rebuild and never go stale.
+            st.session_state.pop("copilot_messages", None)
+            st.session_state.pop("copilot_pending", None)
+            st.toast(f"Cache cleared — {removed} cached answer(s) dropped.", icon=":material/check:")
+            st.rerun()
+
     # Demo account chip, pinned to the foot of the sidebar by .sb-user-foot's
     # margin-top:auto. Not authentication — the app has no login; this stands in
     # for the signed-in user in walkthroughs.
