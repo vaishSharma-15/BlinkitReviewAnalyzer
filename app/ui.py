@@ -317,6 +317,19 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
 .ui-chat-a {{ display:flex; justify-content:flex-start; gap:10px; margin:8px 0 6px; }}
 .ui-chat-a-body {{ flex:1; max-width:88%; }}
 
+/* "Reading the reviews…" bubble shown while an answer is being generated. The three
+   dots run on one keyframe set, offset by animation-delay, so they ripple. */
+.ui-typing {{ display:inline-flex; align-items:center; gap:9px; background:{CARD}; border:1px solid {BORDER};
+              border-radius:14px 14px 14px 4px; padding:11px 15px; color:{MUTED}; font-size:13px; }}
+.ui-typing-dots {{ display:inline-flex; gap:4px; }}
+.ui-typing-dots i {{ width:6px; height:6px; border-radius:50%; background:{YELLOW_DK}; display:block;
+                     animation:ui-blink 1.25s ease-in-out infinite; }}
+.ui-typing-dots i:nth-child(2) {{ animation-delay:0.18s; }}
+.ui-typing-dots i:nth-child(3) {{ animation-delay:0.36s; }}
+@keyframes ui-blink {{ 0%, 70%, 100% {{ opacity:0.22; transform:translateY(0); }}
+                       35% {{ opacity:1; transform:translateY(-3px); }} }}
+@media (prefers-reduced-motion: reduce) {{ .ui-typing-dots i {{ animation:none; opacity:0.6; }} }}
+
 /* Clickable citation link */
 .ui-cite {{ color:{YELLOW_DK}; font-size:11px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }}
 .ui-cite:hover {{ text-decoration:underline; }}

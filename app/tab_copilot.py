@@ -55,6 +55,47 @@ def _cite_links(summary: str, midx: int, n_evidence: int) -> str:
     return re.sub(r"\[([\d,\s]+)\]", repl, safe)
 
 
+def _out_of_scope_html(structured) -> str:
+    """A deliberately bare card for a question the corpus cannot answer: the one-line
+    reason, a short note on what this engine is for, and examples worth asking. No
+    themes, segments, recommendations or quotes — showing the retrieved evidence here
+    would suggest the question was partly answered, which is exactly the vague response
+    this path exists to replace."""
+    examples = "".join(
+        f'<li style="margin-bottom:5px;">{ui.esc(q)}</li>' for q in structured.get("scope_examples", [])
+    )
+    ex_block = (f'{_seclabel("Try asking instead")}'
+                f'<ul style="margin:0;padding-left:18px;color:{ui.MUTED};font-size:13px;">{examples}</ul>'
+                ) if examples else ""
+    return (
+        f'<div class="ui-chat-a"><div class="ui-chat-avatar a">{ui.icon("sparkles", size=17, color=ui.YELLOW)}</div>'
+        f'<div class="ui-chat-a-body">'
+        f'<div class="ui-card" style="border-radius:14px 14px 14px 4px;">'
+        f'<div style="display:flex;gap:9px;align-items:flex-start;">'
+        f'<div style="flex-shrink:0;margin-top:1px;">{ui.icon("alert", size=16, color=ui.FAINT)}</div>'
+        f'<div style="color:{ui.TXT};font-size:14px;line-height:1.6;">{ui.esc(structured["executive_summary"])}</div>'
+        f'</div>'
+        f'<div style="color:{ui.MUTED};font-size:13px;line-height:1.6;margin-top:10px;">'
+        f'{ui.esc(structured.get("scope_blurb", ""))}</div>'
+        f'{ex_block}'
+        f'<div style="color:{ui.FAINT};font-size:11px;margin-top:14px;">Out of scope · no evidence retrieved</div>'
+        f'</div></div></div>'
+    )
+
+
+def _thinking_html(query: str) -> str:
+    """The question bubble plus an animated 'reading' bubble. Rendered before the
+    blocking retrieval/LLM call so Streamlit paints it while the answer is being
+    generated, then replaced by the real answer on the rerun that follows."""
+    return (
+        f'<div class="ui-chat-q"><div class="ui-chat-q-bubble">{ui.esc(query)}</div>'
+        f'<div class="ui-chat-avatar q">{ui.icon("user", size=17, color="#191c1e")}</div></div>'
+        f'<div class="ui-chat-a"><div class="ui-chat-avatar a">{ui.icon("sparkles", size=17, color=ui.YELLOW)}</div>'
+        f'<div class="ui-chat-a-body"><div class="ui-typing">Reading the reviews'
+        f'<span class="ui-typing-dots"><i></i><i></i><i></i></span></div></div></div>'
+    )
+
+
 def _render_message(msg, midx: int = 0):
     query, structured, evidence = msg["query"], msg["structured"], msg["evidence"]
 
@@ -63,9 +104,13 @@ def _render_message(msg, midx: int = 0):
     q_html = (f'<div class="ui-chat-q" id="msg-{midx}"><div class="ui-chat-q-bubble">{ui.esc(query)}</div>'
               f'<div class="ui-chat-avatar q">{ui.icon("user", size=17, color="#191c1e")}</div></div>')
 
+    if structured.get("method") == "out_of_scope":
+        ui.flush([q_html, _out_of_scope_html(structured)])
+        return
+
     # Answer (left-aligned card)
     body = [f'<div class="ui-card" style="border-radius:14px 14px 14px 4px;">',
-            _seclabel("Executive Summary"),
+            _seclabel("What The Reviews Say"),
             f'<div style="color:{ui.TXT};font-size:14px;line-height:1.6;">'
             f'{_cite_links(structured["executive_summary"], midx, len(evidence))}</div>']
 
@@ -173,10 +218,22 @@ def render():
     if "copilot_messages" not in st.session_state:
         st.session_state.copilot_messages = []
 
-    def ask(query):
+    # Asking is two passes. The submit handler only parks the question and reruns; the
+    # rerun paints the question bubble and the typing indicator, and only then runs the
+    # retrieval + LLM call. Doing the work inside the submit handler instead would leave
+    # the page frozen on the previous state for the whole call, with nothing on screen
+    # to say an answer was coming.
+    def submit(query):
+        st.session_state.copilot_pending = query
+
+    def answer(query):
         matched = retrieve_themes(query)
         evidence = retrieve_evidence(query, top_k=8)
         structured = generate_structured_answer(query, evidence, matched)
+        # An out-of-scope reply keeps no evidence: the quotes were retrieved, but they do
+        # not support an answer, so they are not shown as though they did.
+        if structured.get("method") == "out_of_scope":
+            evidence = []
         st.session_state.copilot_messages.append({"query": query, "structured": structured, "evidence": evidence})
         # Land on the top of the new exchange. Streamlit otherwise leaves the viewport at
         # the foot of the page, i.e. the tail end of the answer that just appeared.
@@ -190,19 +247,29 @@ def render():
                      f"{ui.fmt_full(scraped)} reviews scraped, {ui.fmt_full(grounded)} indexed for retrieval.",
                      pill=f"{ui.fmt_full(scraped)} scraped · {ui.fmt_full(grounded)} indexed"))
 
-    if not st.session_state.copilot_messages:
+    pending = st.session_state.get("copilot_pending")
+
+    # The suggestion grid is hidden while a first answer is in flight, so the typing
+    # bubble isn't stranded below a wall of buttons.
+    if not st.session_state.copilot_messages and not pending:
         st.markdown(f'<div class="ui-label">Suggested Questions</div>', unsafe_allow_html=True)
         cols = st.columns(2)
         for i, q in enumerate(SUGGESTED_QUESTIONS):
             if cols[i % 2].button(q, use_container_width=True, key=f"sug_{i}"):
-                ask(q)
+                submit(q)
                 st.rerun()
 
     for i, msg in enumerate(st.session_state.copilot_messages):
         _render_message(msg, i)
 
+    if pending:
+        ui.flush(_thinking_html(pending))
+        answer(pending)
+        st.session_state.copilot_pending = None
+        st.rerun()
+
     _scroll_to_latest()
 
     if query := st.chat_input("Ask about barriers, categories, segments, discovery…"):
-        ask(query)
+        submit(query)
         st.rerun()

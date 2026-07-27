@@ -226,6 +226,52 @@ def _segment_labels(evidence: List[dict]) -> List[str]:
     return labels
 
 
+# --- Scope guard -----------------------------------------------------------
+# Retrieval always returns its top-k, however far away the nearest quote is, so an
+# unrelated question ("book me a Coldplay ticket") still arrives here with 8 reviews
+# attached and used to get a confident-sounding answer written from them. Two gates now
+# stand in the way: a distance floor for the obvious cases, and an in_scope flag the
+# model itself sets for everything subtler.
+#
+# The floor is deliberately loose. Measured top-hit L2 distances on this index: real
+# questions land at 0.47-0.65, "capital of France" at 0.88, "who won the world cup" at
+# 0.74, "write me a python script" at 0.70, "book a Coldplay ticket" at 0.69 — but
+# "tell me a joke" sits at 0.65, inside the legitimate band. A floor tight enough to
+# catch that would start rejecting real questions, so the floor only handles the clear
+# cases and the LLM gate handles the rest.
+OUT_OF_SCOPE_FLOOR = 0.68
+
+SCOPE_BLURB = (
+    "This engine only answers from Blinkit customer reviews. It covers why shoppers stay "
+    "inside a few familiar categories — discovery habits, category barriers, trust and "
+    "price concerns, and how different shopper segments behave. It has no other knowledge "
+    "and cannot take actions such as booking, ordering or account support."
+)
+
+SCOPE_EXAMPLES = [
+    "What prevents users from exploring new categories?",
+    "Which user segments are more likely to experiment?",
+    "What frustrations emerge repeatedly?",
+]
+
+
+def _out_of_scope(note: str) -> dict:
+    return {
+        "executive_summary": note,
+        "scope_blurb": SCOPE_BLURB,
+        "scope_examples": SCOPE_EXAMPLES,
+        "theme_breakdown": [], "affected_segments": [], "product_recommendations": [],
+        "method": "out_of_scope",
+    }
+
+
+def is_out_of_retrieval_range(evidence: List[dict]) -> bool:
+    """True when even the closest review sits beyond OUT_OF_SCOPE_FLOOR — i.e. nothing in
+    the corpus is about this. Missing distances (a non-vector path) never trip the gate."""
+    distances = [e["_distance"] for e in evidence if e.get("_distance") is not None]
+    return bool(distances) and min(distances) > OUT_OF_SCOPE_FLOOR
+
+
 def generate_structured_answer(query: str, evidence: List[dict], matched_themes: List[dict]) -> dict:
     """Returns {executive_summary, theme_breakdown: [str], affected_segments: [str],
     product_recommendations: [str], method}. Tries Gemini for a real synthesis first
@@ -236,10 +282,13 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
     project's insight-only constraint (docs/ProblemStatement.md) is intentionally
     relaxed here at the user's explicit request."""
     if not evidence:
-        return {
-            "executive_summary": "No matching evidence found in the indexed corpus for this question.",
-            "theme_breakdown": [], "affected_segments": [], "product_recommendations": [], "method": "none",
-        }
+        return _out_of_scope("No matching evidence found in the indexed corpus for this question.")
+
+    if is_out_of_retrieval_range(evidence):
+        return _out_of_scope(
+            "That question isn't something the Blinkit review corpus can speak to — nothing "
+            "in it is close to this topic, so there is no evidence to answer from."
+        )
 
     if os.getenv("GEMINI_API_KEY"):
         try:
@@ -261,10 +310,25 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 "evidence quotes below — real Blinkit user reviews. Do not invent facts or "
                 "use outside knowledge for the summary/themes/segments. Respond with ONLY a "
                 "JSON object, no markdown fences: "
-                '{"executive_summary": "2-3 sentence answer citing [n] evidence numbers", '
+                '{"in_scope": true or false, '
+                '"executive_summary": "2-3 sentence answer citing [n] evidence numbers", '
                 '"theme_breakdown": ["theme label", ...], '
                 '"affected_segments": ["segment label", ...], '
                 '"product_recommendations": ["short, directional product recommendation", ...]}. '
+                "FIRST decide in_scope, on the SUBJECT of the question only. Set in_scope=false, "
+                "and every other field empty, in exactly two cases: (a) the question is not about "
+                "Blinkit shoppers, their reviews, or their shopping/discovery behaviour — e.g. "
+                "general knowledge, chit-chat, coding, other companies, or facts about Blinkit as "
+                "a company rather than about its shoppers; (b) it asks you to perform a task or "
+                "transaction — booking, ordering, account or password help, customer support. "
+                "Then put ONE plain sentence in executive_summary saying you cannot answer it and "
+                "why, with no citations and no partial answer built from the quotes. "
+                "Otherwise in_scope=true. A question about shopper behaviour, segments, barriers, "
+                "categories, discovery or sentiment is ALWAYS in scope — including when the "
+                "retrieved quotes cover it only partly. Never decline such a question: answer it "
+                "from the corpus totals and whatever the quotes do support, and say plainly which "
+                "part is thinly evidenced. Weak evidence is a caveat to state, not a reason to "
+                "refuse. "
                 "theme_breakdown MUST use only these exact labels, and only those actually "
                 f"evidenced in the quotes: {', '.join(THEME_CHOICES)}. "
                 "affected_segments MUST use only these exact labels, and only where the quotes "
@@ -293,13 +357,22 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                             if stats_block else f"Question: {query}\n\nEvidence:\n{context}")
             # v6: corpus totals added to the context, so cached v3-v5 answers (which were
             # written without any prevalence data) must not be served.
-            raw = call_llm(system_prompt, user_content, "rag-answer-v6", json_mode=True)
+            # v8: adds the in_scope gate, so cached v6 answers (written before the model
+            # could decline) must not be served for out-of-scope questions. v7 scoped it
+            # on evidence fit as well as subject, which declined real questions whose
+            # quotes were only a partial match.
+            raw = call_llm(system_prompt, user_content, "rag-answer-v8", json_mode=True)
             if raw:
                 import json
                 import re
 
                 cleaned = re.sub(r"^```(json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
                 data = json.loads(cleaned)
+                if data.get("in_scope") is False:
+                    return _out_of_scope(
+                        data.get("executive_summary")
+                        or "That question is outside what the Blinkit review corpus can answer."
+                    )
                 return {
                     "executive_summary": data.get("executive_summary", ""),
                     # Enforced, not merely requested — see _coerce.
