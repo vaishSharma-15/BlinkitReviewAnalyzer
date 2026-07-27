@@ -107,20 +107,20 @@ def inject_theme():
         [data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.sb-user-foot) {{
             margin-top: auto;
         }}
-        /* The Clear cache control is a utility, not a fifth nav destination: it sits
+        /* The Clear chat control is a utility, not a fifth nav destination: it sits
         below the nav block with a rule above it, in a smaller, quieter type than the
         nav rows it would otherwise be indistinguishable from. */
-        [data-testid="stSidebar"] .st-key-sb_cache {{
+        [data-testid="stSidebar"] .st-key-sb_chat {{
             margin-top: 14px;
             padding-top: 12px;
             border-top: 1px solid {SIDEBAR_BORDER};
         }}
-        [data-testid="stSidebar"] .st-key-sb_cache [data-testid="stBaseButton-secondary"] {{
+        [data-testid="stSidebar"] .st-key-sb_chat [data-testid="stBaseButton-secondary"] {{
             font-size: 12px;
             font-weight: 500;
             opacity: 0.72;
         }}
-        [data-testid="stSidebar"] .st-key-sb_cache [data-testid="stBaseButton-secondary"]:hover {{
+        [data-testid="stSidebar"] .st-key-sb_chat [data-testid="stBaseButton-secondary"]:hover {{
             opacity: 1;
         }}
         /* Yellow rule above the account chip — the st.divider() that used to sit here

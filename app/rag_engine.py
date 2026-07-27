@@ -256,6 +256,75 @@ SCOPE_EXAMPLES = [
 ]
 
 
+# --- Small talk ------------------------------------------------------------
+# "hi" is not an out-of-scope request, and answering it with the refusal card reads as
+# hostile to someone who has just opened the tab. Greetings, thanks and goodbyes get a
+# short human reply instead. Matched deterministically and before retrieval: it costs no
+# quota, and it cannot be talked out of the greeting by phrasing.
+SMALLTALK_VOCAB = {
+    "greeting": {
+        "hi", "hii", "hiii", "hey", "heyy", "hello", "helo", "hola", "yo", "namaste",
+        "hi there", "hey there", "hello there", "good morning", "good afternoon",
+        "good evening", "greetings", "howdy", "sup", "whats up", "what's up",
+        "how are you", "how r u", "how are you doing", "who are you", "what are you",
+        "what can you do", "what do you do", "help", "start",
+    },
+    "thanks": {
+        "thanks", "thank you", "thankyou", "thanks a lot", "thank you so much", "ty",
+        "thx", "tysm", "cheers", "great thanks", "awesome thanks", "perfect thanks",
+        "nice", "great", "awesome", "cool", "perfect", "ok thanks", "okay thanks",
+    },
+    "farewell": {
+        "bye", "byee", "goodbye", "good bye", "see you", "see ya", "cya", "bye bye",
+        "take care", "later", "good night", "gn",
+    },
+}
+
+SMALLTALK_REPLY = {
+    "greeting": (
+        "Hi! I'm the Blinkit Insight Engine. I read what real Blinkit shoppers wrote in "
+        "their reviews, so ask me anything about their behaviour — why people stick to a "
+        "few familiar categories, what stops them trying new ones, what frustrates them, "
+        "and how different shopper segments differ."
+    ),
+    "thanks": (
+        "Happy to help. Ask another question whenever you like — I can dig into any "
+        "category barrier, shopper segment or discovery habit in the reviews."
+    ),
+    "farewell": (
+        "Bye! Come back any time you want to know what Blinkit shoppers are saying."
+    ),
+}
+
+
+def detect_smalltalk(query: str) -> Optional[str]:
+    """Return 'greeting' | 'thanks' | 'farewell' when the message is *only* small talk.
+
+    Whole-message matching, deliberately. "hi, what stops users exploring?" is a real
+    question with a greeting attached and must go down the retrieval path — only a
+    message that is nothing but the pleasantry is answered from here.
+    """
+    cleaned = "".join(ch for ch in query.lower() if ch.isalnum() or ch in " '").strip()
+    cleaned = " ".join(cleaned.split())
+    if not cleaned or len(cleaned.split()) > 4:
+        return None
+    for kind, phrases in SMALLTALK_VOCAB.items():
+        if cleaned in phrases:
+            return kind
+    return None
+
+
+def smalltalk_answer(kind: str) -> dict:
+    """A friendly reply card: no evidence, no refusal framing, and — for an opening
+    greeting — the same example questions the empty state offers."""
+    return {
+        "executive_summary": SMALLTALK_REPLY[kind],
+        "scope_examples": SCOPE_EXAMPLES if kind == "greeting" else [],
+        "theme_breakdown": [], "affected_segments": [], "product_recommendations": [],
+        "method": "smalltalk",
+    }
+
+
 def _out_of_scope(note: str) -> dict:
     return {
         "executive_summary": note,
@@ -273,30 +342,6 @@ def is_out_of_retrieval_range(evidence: List[dict]) -> bool:
     return bool(distances) and min(distances) > OUT_OF_SCOPE_FLOOR
 
 
-def clear_answer_cache() -> int:
-    """Delete the on-disk LLM cache entries for chat answers, and return how many went.
-
-    Deliberately narrow. data/cache holds every LLM call the project has ever made, and
-    the overwhelming majority are enrichment batches (v1/v2-batch/v3-batch) that cost
-    thousands of Gemini calls to produce and are not regenerable within a daily quota —
-    at last count 1,130 of 1,146 files. Only the rag-answer-* entries, which are cheap
-    and re-earned on the next question, are removed here.
-    """
-    from src.llm import CACHE_DIR
-
-    removed = 0
-    if not CACHE_DIR.exists():
-        return 0
-    for path in CACHE_DIR.glob("*.json"):
-        try:
-            if json.loads(path.read_text(encoding="utf-8")).get("prompt_version", "").startswith("rag-answer"):
-                path.unlink()
-                removed += 1
-        except (OSError, ValueError):
-            continue  # an unreadable or half-written cache entry is not ours to fix here
-    return removed
-
-
 def generate_structured_answer(query: str, evidence: List[dict], matched_themes: List[dict]) -> dict:
     """Returns {executive_summary, theme_breakdown: [str], affected_segments: [str],
     product_recommendations: [str], method}. Tries Gemini for a real synthesis first
@@ -306,6 +351,12 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
     one field allowed to be judgment rather than pure evidence extraction — the
     project's insight-only constraint (docs/ProblemStatement.md) is intentionally
     relaxed here at the user's explicit request."""
+    # Safety net: the tab short-circuits small talk before retrieval, but this keeps any
+    # other caller from routing "hi" into the refusal path.
+    kind = detect_smalltalk(query)
+    if kind:
+        return smalltalk_answer(kind)
+
     if not evidence:
         return _out_of_scope("No matching evidence found in the indexed corpus for this question.")
 
@@ -335,7 +386,7 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 "evidence quotes below — real Blinkit user reviews. Do not invent facts or "
                 "use outside knowledge for the summary/themes/segments. Respond with ONLY a "
                 "JSON object, no markdown fences: "
-                '{"in_scope": true or false, '
+                '{"in_scope": true or false, "smalltalk": true or false, '
                 '"executive_summary": "2-3 sentence answer citing [n] evidence numbers", '
                 '"theme_breakdown": ["theme label", ...], '
                 '"affected_segments": ["segment label", ...], '
@@ -348,6 +399,10 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 "transaction — booking, ordering, account or password help, customer support. "
                 "Then put ONE plain sentence in executive_summary saying you cannot answer it and "
                 "why, with no citations and no partial answer built from the quotes. "
+                "A greeting, a thank-you or a goodbye is NEITHER of those cases: set "
+                "smalltalk=true (with in_scope=false) and make executive_summary a short, warm "
+                "reply that invites a question about what shoppers say in their reviews. Never "
+                "tell someone who said hello that their question cannot be answered. "
                 "Otherwise in_scope=true. A question about shopper behaviour, segments, barriers, "
                 "categories, discovery or sentiment is ALWAYS in scope — including when the "
                 "retrieved quotes cover it only partly. Never decline such a question: answer it "
@@ -382,17 +437,22 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                             if stats_block else f"Question: {query}\n\nEvidence:\n{context}")
             # v6: corpus totals added to the context, so cached v3-v5 answers (which were
             # written without any prevalence data) must not be served.
-            # v8: adds the in_scope gate, so cached v6 answers (written before the model
-            # could decline) must not be served for out-of-scope questions. v7 scoped it
-            # on evidence fit as well as subject, which declined real questions whose
-            # quotes were only a partial match.
-            raw = call_llm(system_prompt, user_content, "rag-answer-v8", json_mode=True)
+            # v9: greetings get a warm reply rather than the refusal. v8 added the
+            # in_scope gate, so cached v6 answers (written before the model could decline)
+            # must not be served for out-of-scope questions; v7 scoped that gate on
+            # evidence fit as well as subject, which declined real questions whose quotes
+            # were only a partial match.
+            raw = call_llm(system_prompt, user_content, "rag-answer-v9", json_mode=True)
             if raw:
-                import json
                 import re
 
                 cleaned = re.sub(r"^```(json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
                 data = json.loads(cleaned)
+                if data.get("smalltalk") is True:
+                    reply = smalltalk_answer("greeting")
+                    if data.get("executive_summary"):
+                        reply["executive_summary"] = data["executive_summary"]
+                    return reply
                 if data.get("in_scope") is False:
                     return _out_of_scope(
                         data.get("executive_summary")

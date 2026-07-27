@@ -14,7 +14,14 @@ import streamlit.components.v1 as components
 
 from app import ui
 from app.data import load_enriched_df, scraped_count
-from app.rag_engine import generate_structured_answer, get_db, retrieve_evidence, retrieve_themes
+from app.rag_engine import (
+    detect_smalltalk,
+    generate_structured_answer,
+    get_db,
+    retrieve_evidence,
+    retrieve_themes,
+    smalltalk_answer,
+)
 
 SUGGESTED_QUESTIONS = [
     "Why do users repeatedly buy from the same categories?",
@@ -83,6 +90,27 @@ def _out_of_scope_html(structured) -> str:
     )
 
 
+def _smalltalk_html(structured) -> str:
+    """A plain conversational bubble for a greeting, thanks or goodbye — no card chrome,
+    no scope notice, no 'no evidence' footer. Someone saying hello has not asked a
+    question that failed; treating it like one is what made the refusal card read as
+    hostile."""
+    examples = "".join(
+        f'<li style="margin-bottom:5px;">{ui.esc(q)}</li>' for q in structured.get("scope_examples", [])
+    )
+    ex_block = (f'{_seclabel("Try asking")}'
+                f'<ul style="margin:0;padding-left:18px;color:{ui.MUTED};font-size:13px;">{examples}</ul>'
+                ) if examples else ""
+    return (
+        f'<div class="ui-chat-a"><div class="ui-chat-avatar a">{ui.icon("sparkles", size=17, color=ui.YELLOW)}</div>'
+        f'<div class="ui-chat-a-body">'
+        f'<div class="ui-card" style="border-radius:14px 14px 14px 4px;">'
+        f'<div style="color:{ui.TXT};font-size:14px;line-height:1.6;">'
+        f'{ui.esc(structured["executive_summary"])}</div>{ex_block}'
+        f'</div></div></div>'
+    )
+
+
 def _thinking_html(query: str, midx: int) -> str:
     """The question bubble plus an animated 'reading' bubble. Rendered before the
     blocking retrieval/LLM call so Streamlit paints it while the answer is being
@@ -107,6 +135,10 @@ def _render_message(msg, midx: int = 0):
     # landing here shows the question and the top of its answer, not the tail of it.
     q_html = (f'<div class="ui-chat-q" id="msg-{midx}"><div class="ui-chat-q-bubble">{ui.esc(query)}</div>'
               f'<div class="ui-chat-avatar q">{ui.icon("user", size=17, color="#191c1e")}</div></div>')
+
+    if structured.get("method") == "smalltalk":
+        ui.flush([q_html, _smalltalk_html(structured)])
+        return
 
     if structured.get("method") == "out_of_scope":
         ui.flush([q_html, _out_of_scope_html(structured)])
@@ -188,27 +220,42 @@ def _scroll_to(idx: int):
     container pinned itself, so the answer's tail was visibly on screen first and the
     view then travelled up to the question — which read as a flicker. Instant jumps run
     before the frame paints, so the first thing on screen is the question.
+
+    And the position is re-asserted every frame rather than on a handful of timers. An
+    answer keeps growing after its first paint — evidence cards, the citation chips, the
+    components iframes all settle over several hundred ms — and each growth spurt sends
+    the container back to the bottom. Timed jumps kept losing the last of those races,
+    which is why the tail of the answer was still what you landed on. The loop stops the
+    moment the reader scrolls, so it never fights a deliberate scroll.
     """
     components.html(
         f"""
         <script>
         const doc = window.parent.document;
-        function jump() {{
+        let released = false;
+        // Any real scroll intent hands control straight back to the reader.
+        ["wheel", "touchstart", "keydown", "mousedown"].forEach(
+            evt => doc.addEventListener(evt, () => {{ released = true; }}, {{passive: true, once: true}}));
+
+        const start = performance.now();
+        function hold() {{
+            if (released) return;
             const el = doc.getElementById("msg-{idx}");
-            if (!el) return false;
             const cont = doc.querySelector('[data-testid="stAppScrollToBottomContainer"]');
-            if (cont) {{
-                // 76px clears Streamlit's 60px fixed header, which overlays the
-                // scroll container and would otherwise cut off the question bubble.
-                const top = el.getBoundingClientRect().top
-                          - cont.getBoundingClientRect().top + cont.scrollTop - 76;
-                cont.scrollTo({{top: top, behavior: "auto"}});
-            }} else {{
-                el.scrollIntoView({{behavior: "auto", block: "start"}});
+            if (el) {{
+                if (cont) {{
+                    // 76px clears Streamlit's 60px fixed header, which overlays the
+                    // scroll container and would otherwise cut off the question bubble.
+                    const top = el.getBoundingClientRect().top
+                              - cont.getBoundingClientRect().top + cont.scrollTop - 76;
+                    if (Math.abs(cont.scrollTop - top) > 2) cont.scrollTo({{top: top, behavior: "auto"}});
+                }} else {{
+                    el.scrollIntoView({{behavior: "auto", block: "start"}});
+                }}
             }}
-            return true;
+            if (performance.now() - start < 2500) requestAnimationFrame(hold);
         }}
-        [0, 40, 90, 180, 320, 550, 900].forEach(d => setTimeout(jump, d));
+        requestAnimationFrame(hold);
         </script>
         """,
         height=0,
@@ -239,6 +286,15 @@ def render():
         st.session_state.copilot_pending = query
 
     def answer(query):
+        # Small talk never reaches retrieval or the LLM: no quota spent, and no chance of
+        # "hi" being answered from whatever eight reviews happened to be nearest.
+        kind = detect_smalltalk(query)
+        if kind:
+            st.session_state.copilot_messages.append(
+                {"query": query, "structured": smalltalk_answer(kind), "evidence": []})
+            st.session_state.copilot_scroll_to = len(st.session_state.copilot_messages) - 1
+            return
+
         matched = retrieve_themes(query)
         evidence = retrieve_evidence(query, top_k=8)
         structured = generate_structured_answer(query, evidence, matched)
