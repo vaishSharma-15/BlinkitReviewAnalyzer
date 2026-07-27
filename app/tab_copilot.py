@@ -13,6 +13,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from app import ui
+from app.data import load_enriched_df, scraped_count
 from app.rag_engine import generate_structured_answer, get_db, retrieve_evidence, retrieve_themes
 
 SUGGESTED_QUESTIONS = [
@@ -181,9 +182,13 @@ def render():
         # the foot of the page, i.e. the tail end of the answer that just appeared.
         st.session_state.copilot_scroll_to = len(st.session_state.copilot_messages) - 1
 
+    grounded = len(load_enriched_df())
+    scraped = scraped_count(grounded)
     ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
-                     "Trained on thousands of Blinkit reviews, Reddit threads and community "
-                     "discussions — every answer grounded in what real users said."))
+                     f"Trained on thousands of Blinkit reviews, Reddit threads and community "
+                     f"discussions — every answer grounded in what real users said. "
+                     f"{ui.fmt_full(scraped)} reviews scraped, {ui.fmt_full(grounded)} indexed for retrieval.",
+                     pill=f"{ui.fmt_full(scraped)} scraped · {ui.fmt_full(grounded)} indexed"))
 
     if not st.session_state.copilot_messages:
         st.markdown(f'<div class="ui-label">Suggested Questions</div>', unsafe_allow_html=True)

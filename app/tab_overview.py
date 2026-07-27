@@ -5,7 +5,7 @@ is one HTML flush so grid alignment is exact.
 import streamlit as st
 
 from app import ui
-from app.data import load_enriched_df, load_funnel
+from app.data import load_enriched_df, load_funnel, scraped_count
 
 
 def render():
@@ -25,7 +25,7 @@ def render():
     classified = int((df["theme_id"] != "unclassified").sum())
     # Everything actually pulled from the sources, before the dedup/relevance gates —
     # the pill reports the scrape, the funnel below shows how it narrows to `total`.
-    scraped = load_funnel().get("normalized", {}).get("funnel", {}).get("raw") or total
+    scraped = scraped_count(total)
 
     parts = [
         ui.hero("grid", "Blinkit · Voice of Customer", "Blinkit Reviews Discovery Engine",

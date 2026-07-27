@@ -10,7 +10,7 @@ from pathlib import Path
 import streamlit as st
 
 from app import ui
-from app.data import load_themes_df
+from app.data import load_themes_df, scraped_count
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,10 +24,12 @@ def render():
     themes = themes_df.sort_values("rank_score", ascending=False).to_dict("records")
     total_corpus = sum(t["size"] for t in themes) or 1
 
+    scraped = scraped_count(total_corpus)
     ui.flush(ui.hero("layers", "Theme Intelligence", "Themes & User Voice",
-                     "Every category barrier, classified from an LLM's reading of the reviews — ranked by "
-                     "mentions, with the real user quotes behind each one.",
-                     pill=f"{ui.fmt_full(total_corpus)} reviews"))
+                     f"Every category barrier, classified from an LLM's reading of the reviews — ranked by "
+                     f"mentions, with the real user quotes behind each one. Drawn from "
+                     f"{ui.fmt_full(scraped)} reviews scraped, narrowed to {ui.fmt_full(total_corpus)} themed.",
+                     pill=f"{ui.fmt_full(scraped)} scraped · {ui.fmt_full(total_corpus)} themed"))
 
     parts = [_summary_chips(themes), _rq_strip(), '<div class="ui-label">All Themes</div>', '<div class="ui-g2">']
     for i, t in enumerate(themes):

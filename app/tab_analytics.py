@@ -9,7 +9,7 @@ import re
 import streamlit as st
 
 from app import ui
-from app.data import load_enriched_df
+from app.data import load_enriched_df, scraped_count
 
 MATCH_LIMIT = 12
 
@@ -34,10 +34,12 @@ def render():
     # The filter row is a Streamlit widget block, which carries no top margin of its own —
     # without this spacer it sits flush against the hero card. Other tabs get their gap
     # from the .ui-label that follows their hero.
+    scraped = scraped_count(len(df))
     ui.flush([ui.hero("bar-chart", "Analytics Dashboard", "Deep Analytics",
-                      "Sentiment, barriers and complaint rates from LLM-classified reviews. Filter by keyword, "
-                      "source or sentiment — every panel updates together.",
-                      pill=f"{ui.fmt_full(len(df))} reviews"),
+                      f"Sentiment, barriers and complaint rates from LLM-classified reviews. Filter by keyword, "
+                      f"source or sentiment — every panel updates together. {ui.fmt_full(scraped)} reviews "
+                      f"scraped, narrowed to the {ui.fmt_full(len(df))} analysed here.",
+                      pill=f"{ui.fmt_full(scraped)} scraped · {ui.fmt_full(len(df))} analysed"),
               '<div style="height:20px;"></div>'])
 
     # --- Filter bar (real Streamlit widgets, styled compact) ----------------

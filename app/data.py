@@ -96,6 +96,13 @@ def load_funnel() -> Dict[str, dict]:
     return funnel
 
 
+def scraped_count(fallback: int = 0) -> int:
+    """Everything pulled from the sources before the dedup/relevance gates. Every tab
+    reports this alongside its own working count, so the headline scrape figure is not
+    only visible on Overview."""
+    return load_funnel().get("normalized", {}).get("funnel", {}).get("raw") or fallback
+
+
 @st.cache_data(show_spinner=False)
 def load_source_blocked_reasons() -> Dict[str, str]:
     """Surfaces the honest 'genuinely unscrapable' documentation from each raw
