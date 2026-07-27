@@ -185,8 +185,8 @@ def render():
     grounded = len(load_enriched_df())
     scraped = scraped_count(grounded)
     ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
-                     f"Trained on thousands of Blinkit reviews, Reddit threads and community "
-                     f"discussions — every answer grounded in what real users said. "
+                     f"Trained on thousands of Blinkit app-store reviews, YouTube comments and "
+                     f"q-commerce community discussions — every answer grounded in what real users said. "
                      f"{ui.fmt_full(scraped)} reviews scraped, {ui.fmt_full(grounded)} indexed for retrieval.",
                      pill=f"{ui.fmt_full(scraped)} scraped · {ui.fmt_full(grounded)} indexed"))
 
