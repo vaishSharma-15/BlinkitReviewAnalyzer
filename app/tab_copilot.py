@@ -83,12 +83,16 @@ def _out_of_scope_html(structured) -> str:
     )
 
 
-def _thinking_html(query: str) -> str:
+def _thinking_html(query: str, midx: int) -> str:
     """The question bubble plus an animated 'reading' bubble. Rendered before the
     blocking retrieval/LLM call so Streamlit paints it while the answer is being
-    generated, then replaced by the real answer on the rerun that follows."""
+    generated, then replaced by the real answer on the rerun that follows.
+
+    It carries the same msg-{midx} id the finished answer will carry, so the view is
+    already parked on the question before the answer exists and does not have to travel
+    there afterwards."""
     return (
-        f'<div class="ui-chat-q"><div class="ui-chat-q-bubble">{ui.esc(query)}</div>'
+        f'<div class="ui-chat-q" id="msg-{midx}"><div class="ui-chat-q-bubble">{ui.esc(query)}</div>'
         f'<div class="ui-chat-avatar q">{ui.icon("user", size=17, color="#191c1e")}</div></div>'
         f'<div class="ui-chat-a"><div class="ui-chat-avatar a">{ui.icon("sparkles", size=17, color=ui.YELLOW)}</div>'
         f'<div class="ui-chat-a-body"><div class="ui-typing">Reading the reviews'
@@ -110,7 +114,7 @@ def _render_message(msg, midx: int = 0):
 
     # Answer (left-aligned card)
     body = [f'<div class="ui-card" style="border-radius:14px 14px 14px 4px;">',
-            _seclabel("What The Reviews Say"),
+            _seclabel("What Users Say"),
             f'<div style="color:{ui.TXT};font-size:14px;line-height:1.6;">'
             f'{_cite_links(structured["executive_summary"], midx, len(evidence))}</div>']
 
@@ -171,18 +175,20 @@ def _render_message(msg, midx: int = 0):
     ui.flush([q_html, a_html])
 
 
-def _scroll_to_latest():
-    """Scroll to the top of the newest exchange, once, after it is rendered.
+def _scroll_to(idx: int):
+    """Park the view on the top of exchange `idx` and hold it there.
 
     Two obstacles. st.markdown strips <script>, so the JS runs from a components iframe
     and reaches into the parent document. And the scroller is Streamlit's
     stAppScrollToBottomContainer, which — with a chat_input on the page — pins itself to
-    the bottom, i.e. the tail of the answer that just arrived. A single scroll call loses
-    that race, so the position is re-asserted over the second following the rerun.
+    the bottom whenever content grows. A single scroll call loses that race, so the
+    position is re-asserted over the second that follows.
+
+    The jumps are instant, not smooth. A smooth scroll animates *from* wherever the
+    container pinned itself, so the answer's tail was visibly on screen first and the
+    view then travelled up to the question — which read as a flicker. Instant jumps run
+    before the frame paints, so the first thing on screen is the question.
     """
-    idx = st.session_state.pop("copilot_scroll_to", None)
-    if idx is None:
-        return
     components.html(
         f"""
         <script>
@@ -196,17 +202,23 @@ def _scroll_to_latest():
                 // scroll container and would otherwise cut off the question bubble.
                 const top = el.getBoundingClientRect().top
                           - cont.getBoundingClientRect().top + cont.scrollTop - 76;
-                cont.scrollTo({{top: top, behavior: "smooth"}});
+                cont.scrollTo({{top: top, behavior: "auto"}});
             }} else {{
-                el.scrollIntoView({{behavior: "smooth", block: "start"}});
+                el.scrollIntoView({{behavior: "auto", block: "start"}});
             }}
             return true;
         }}
-        [0, 80, 200, 450, 800, 1200].forEach(d => setTimeout(jump, d));
+        [0, 40, 90, 180, 320, 550, 900].forEach(d => setTimeout(jump, d));
         </script>
         """,
         height=0,
     )
+
+
+def _scroll_to_latest():
+    idx = st.session_state.pop("copilot_scroll_to", None)
+    if idx is not None:
+        _scroll_to(idx)
 
 
 def render():
@@ -263,7 +275,13 @@ def render():
         _render_message(msg, i)
 
     if pending:
-        ui.flush(_thinking_html(pending))
+        # The typing bubble takes the index the finished answer will occupy, and the view
+        # is moved onto it *before* the blocking call — so the question is already at the
+        # top of the screen while the answer is being written, and the rerun that swaps in
+        # the answer re-asserts the same position rather than arriving from the bottom.
+        idx = len(st.session_state.copilot_messages)
+        ui.flush(_thinking_html(pending, idx))
+        _scroll_to(idx)
         answer(pending)
         st.session_state.copilot_pending = None
         st.rerun()

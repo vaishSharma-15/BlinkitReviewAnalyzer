@@ -339,4 +339,8 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
 /* [n] marker tying an evidence card to the [n] citations in the summary above. */
 .ui-citenum {{ background:{TXT}; color:{YELLOW}; font-size:11px; font-weight:800; font-family:monospace; padding:1px 6px; border-radius:5px; }}
 .ui-secline {{ color:{FAINT}; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; margin:16px 0 8px; display:flex; align-items:center; gap:6px; }}
+/* A section label opening a card would otherwise stack its own 16px on top of the
+   card's 20px padding — 36px above the label against 8px below it, so the label read
+   as detached from the text it introduces. The card's padding is enough on its own. */
+.ui-card > .ui-secline:first-child {{ margin-top:0; }}
 </style>"""
