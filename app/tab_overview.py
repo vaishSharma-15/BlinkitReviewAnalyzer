@@ -38,6 +38,7 @@ def render():
         '<div class="ui-row">', _funnel(df, total, classified), "</div>",
         '<div class="ui-row ui-split">', _struggles(df), _concentration(df), "</div>",
         '<div class="ui-row ui-split">', _segments(df), _donut(pos, neu, neg, total), "</div>",
+        '<div class="ui-row">', _segment_profile(df), "</div>",
         '<div class="ui-row">', _coverage(df), "</div>",
         '<div class="ui-row">', _recent(df), "</div>",
     ]
@@ -157,29 +158,124 @@ SEG_LABELS = {
 }
 
 
-def _segments(df):
-    rows = []
-    for col in ["price_sensitivity", "family_stage", "has_pet", "city_tier"]:
-        known = df[df[col] != "unknown"]
-        for value, grp in known.groupby(col):
-            if len(grp) < 10:
+# The four segment dimensions the enrichment pipeline assigns (src/schemas.py), in the
+# order they are worth reading: the one with real coverage first.
+SEG_DIMENSIONS = [
+    ("price_sensitivity", "Price sensitivity", ["high", "low"]),
+    ("family_stage", "Life stage", ["parent_young_child", "single", "couple"]),
+    ("city_tier", "City tier", ["metro", "tier2"]),
+    ("has_pet", "Pet ownership", ["yes"]),
+]
+
+# Below this a rate is noise, not a measurement. Kept identical to the floor
+# rag_engine.corpus_stats applies, so the chat answer and this panel agree on which
+# segments are reportable.
+MIN_SEGMENT_N = 10
+
+
+def _seg_rows(df):
+    """(dimension label, segment label, n, negative rate) for every labelled segment,
+    including the ones too small to report — they are shown flagged rather than dropped,
+    because a segment silently missing from the chart reads as a segment with no data."""
+    out = []
+    for col, dim_label, values in SEG_DIMENSIONS:
+        for value in values:
+            grp = df[df[col] == value]
+            if grp.empty:
                 continue
             label = SEG_LABELS.get(f"{col}={value}", f"{col}={value}")
-            rows.append(((grp["sentiment"] < -0.2).mean(), len(grp), label, SEG_ICON.get(col, "user")))
-    rows.sort(key=lambda r: (-r[0], -r[1]))
-    rows = rows[:5]
+            out.append((dim_label, label, len(grp), float((grp["sentiment"] < -0.2).mean())))
+    return out
+
+
+def _segments(df):
+    """Negative-sentiment rate per segment, against the corpus average.
+
+    A bare ranking said which segment was angriest but not whether that was unusual —
+    at a 60% corpus-wide negative rate, a 59% segment is ordinary. The dashed rule is
+    the corpus average, so the comparison is positional and the bars need no second
+    colour to carry it.
+    """
+    rows = [r for r in _seg_rows(df) if r[2] >= MIN_SEGMENT_N]
     if not rows:
-        return '<div class="ui-card"><div class="ui-card-title">Who\'s Most Frustrated</div><div class="ui-muted">No segment signals detected in this corpus.</div></div>'
-    body = "".join(
-        f'<div class="ui-seg-row"><div class="ui-seg-rank">{i}</div>'
-        f'<div class="ui-seg-name" style="display:flex;align-items:center;gap:8px;">'
-        f'<span style="color:{ui.FAINT};">{ui.icon(ic, size=15, color=ui.MUTED)}</span>{label}</div>'
-        f'<div class="ui-seg-rate">{rate:.0%}</div><div class="ui-seg-n">{ui.fmt_full(n)}</div></div>'
-        for i, (rate, n, label, ic) in enumerate(rows, start=1)
-    )
+        return ('<div class="ui-card"><div class="ui-card-title">Who\'s Most Frustrated</div>'
+                '<div class="ui-muted">No segment signals detected in this corpus.</div></div>')
+    rows.sort(key=lambda r: (-r[3], -r[2]))
+    corpus_rate = float((df["sentiment"] < -0.2).mean())
+
+    bars = []
+    for _, label, n, rate in rows:
+        bars.append(
+            f'<div class="ui-hb" title="{ui.esc(label)}: {rate:.0%} negative across {n:,} labelled reviews">'
+            f'<div class="ui-hb-label">{label}</div>'
+            f'<div class="ui-hb-track"><div class="ui-hb-fill" style="width:{rate*100:.1f}%;background:{ui.NEG};"></div>'
+            f'<div class="ui-hb-ref" style="left:{corpus_rate*100:.1f}%;"></div></div>'
+            f'<div class="ui-hb-val">{rate:.0%} <span>· {ui.fmt_full(n)}</span></div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">Who\'s Most Frustrated</div>'
-            f'<div class="ui-card-sub">Negative-sentiment rate by user segment</div>'
-            f'<div class="ui-seg-head"><div>#</div><div>Segment</div><div>Rate</div><div>Reviews</div></div>{body}</div>')
+            f'<div class="ui-card-sub">Negative-sentiment rate by segment, against the '
+            f'{corpus_rate:.0%} corpus average. Value shows rate · labelled reviews.</div>'
+            f'{"".join(bars)}'
+            f'<div class="ui-hb-reflabel">┆ dashed rule = {corpus_rate:.0%} corpus average · '
+            f'segments under {MIN_SEGMENT_N} reviews are excluded</div></div>')
+
+
+def _segment_profile(df):
+    """Who the segments are and how much of the corpus actually carries a label.
+
+    Two panels, because they answer different questions and share no scale: sizes are
+    counts, coverage is a share of the corpus. The coverage panel is the honest half —
+    a review rarely says whether its writer has children or a dog, so three of the four
+    dimensions are unknown for nearly everyone, and any reading of them has to start
+    from that.
+    """
+    total = len(df)
+    rows = _seg_rows(df)
+    if not rows:
+        return ""
+    biggest = max(r[2] for r in rows)
+
+    size_html = []
+    current_dim = None
+    for dim_label, label, n, _rate in rows:
+        if dim_label != current_dim:
+            size_html.append(f'<div class="ui-dim">{dim_label}</div>')
+            current_dim = dim_label
+        flag = f'<span class="ui-flag" title="Under {MIN_SEGMENT_N} reviews — too small to report a rate">LOW n</span>' \
+            if n < MIN_SEGMENT_N else ""
+        size_html.append(
+            f'<div class="ui-hb" title="{ui.esc(label)}: {n:,} reviews, {n/total:.1%} of the corpus">'
+            f'<div class="ui-hb-label">{label}{flag}</div>'
+            f'<div class="ui-hb-track"><div class="ui-hb-fill" style="width:{n/biggest*100:.1f}%;background:{ui.CAT[1]};"></div></div>'
+            f'<div class="ui-hb-val">{ui.fmt_full(n)} <span>· {n/total:.1%}</span></div></div>')
+
+    cov_html = []
+    for col, dim_label, _values in SEG_DIMENSIONS:
+        labelled = int((df[col] != "unknown").sum())
+        share = labelled / total if total else 0
+        cov_html.append(
+            f'<div class="ui-hb" title="{dim_label}: {labelled:,} of {total:,} reviews carry a label">'
+            f'<div class="ui-hb-label">{dim_label}</div>'
+            f'<div class="ui-stack">'
+            f'<div style="width:{max(share*100, 0.4):.1f}%;background:{ui.CAT[1]};"></div>'
+            f'<div style="width:{(1-share)*100:.1f}%;background:{ui.BORDER};"></div></div>'
+            f'<div class="ui-hb-val">{share:.1%} <span>· {ui.fmt_full(labelled)}</span></div></div>')
+
+    return (
+        f'<div class="ui-card"><div class="ui-card-title">Who Our Shoppers Are</div>'
+        f'<div class="ui-card-sub">The eight segments the enrichment pipeline assigns, and how '
+        f'much of the corpus each dimension actually labels.</div>'
+        f'<div class="ui-g2">'
+        f'<div><div class="ui-secline">Segment size</div>{"".join(size_html)}</div>'
+        f'<div><div class="ui-secline">Labelled coverage</div>'
+        f'<div class="ui-legend"><span><i style="background:{ui.CAT[1]};"></i>Labelled</span>'
+        f'<span><i style="background:{ui.BORDER};"></i>Unknown</span></div>'
+        f'{"".join(cov_html)}'
+        f'<div style="color:{ui.MUTED};font-size:12px;line-height:1.55;margin-top:14px;">'
+        f'Only price sensitivity is labelled on a meaningful slice of the corpus. An app-store '
+        f'review rarely reveals whether its writer has children, a pet or lives in a metro, so '
+        f'the enricher leaves those unknown rather than guessing — read the life-stage, city and '
+        f'pet splits as directional, and the price split as measured.</div>'
+        f'</div></div></div>')
 
 
 def _donut(pos, neu, neg, total):

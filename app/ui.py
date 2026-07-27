@@ -233,15 +233,8 @@ _UI_CSS = f"""<style>
 .ui-rep-track {{ height:6px; background:{CARD2}; border-radius:3px; }}
 .ui-rep-fill {{ height:6px; border-radius:3px; }}
 
-/* Segment leaderboard + cards */
-.ui-seg-head {{ display:grid; grid-template-columns:26px 1fr 62px 64px; color:{FAINT}; font-size:10px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding-bottom:9px; border-bottom:1px solid {BORDER}; }}
-/* Rate/Reviews headers must right-align to sit over their right-aligned numbers. */
-.ui-seg-head div:nth-child(3), .ui-seg-head div:nth-child(4) {{ text-align:right; }}
-.ui-seg-row {{ display:grid; grid-template-columns:26px 1fr 62px 64px; align-items:center; padding:11px 0; border-bottom:1px solid {BORDER}; }}
-.ui-seg-rank {{ color:{FAINT}; font-size:13px; font-weight:700; }}
-.ui-seg-name {{ color:{TXT}; font-size:13px; font-weight:600; }}
-.ui-seg-rate {{ color:{NEG}; font-size:14px; font-weight:800; text-align:right; }}
-.ui-seg-n {{ color:{MUTED}; font-size:13px; text-align:right; }}
+/* Segment cards. The leaderboard table these sat beside became a bar chart with a
+   corpus-average rule (tab_overview._segments), so its row/rank/rate rules are gone. */
 .ui-segcard {{ background:{CARD}; border:1px solid {BORDER2}; border-radius:12px; padding:16px; position:relative; box-shadow:0 1px 2px rgba(16,24,40,0.04); }}
 .ui-segcard-rank {{ position:absolute; top:14px; right:16px; color:{FAINT}; font-size:12px; font-weight:700; }}
 .ui-segcard-icon {{ width:30px; height:30px; border-radius:8px; background:{YELLOW_SOFT}; display:inline-flex; align-items:center; justify-content:center; font-size:15px; }}
@@ -338,6 +331,30 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
 .ui-citechip:hover {{ background:{YELLOW}; color:{TXT}; }}
 /* [n] marker tying an evidence card to the [n] citations in the summary above. */
 .ui-citenum {{ background:{TXT}; color:{YELLOW}; font-size:11px; font-weight:800; font-family:monospace; padding:1px 6px; border-radius:5px; }}
+/* Horizontal bar rows (segment sizes, segment negative rates). Bars are anchored to a
+   shared baseline on the left and rounded only at the data end, so length is the only
+   thing that varies. The reference rule is absolutely positioned inside the track. */
+.ui-hb {{ display:grid; grid-template-columns:112px 1fr 84px; align-items:center; gap:10px; margin-bottom:8px; }}
+.ui-hb-label {{ color:{TXT}; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+.ui-hb-track {{ position:relative; height:14px; background:{CARD2}; border:1px solid {BORDER}; border-radius:4px; }}
+.ui-hb-fill {{ position:absolute; left:0; top:0; height:100%; border-radius:3px 4px 4px 3px; min-width:2px; }}
+.ui-hb-val {{ color:{TXT}; font-size:12px; font-weight:700; text-align:right; white-space:nowrap; }}
+.ui-hb-val span {{ color:{FAINT}; font-weight:500; }}
+/* Corpus-average rule: polarity is read from which side of it a bar ends, so the bars
+   themselves need no second colour. */
+.ui-hb-ref {{ position:absolute; top:-4px; bottom:-4px; width:0; border-left:2px dashed {MUTED}; }}
+.ui-hb-reflabel {{ color:{MUTED}; font-size:10.5px; margin:2px 0 12px 122px; }}
+/* Two-part coverage bar. The 2px gap is surface showing through, not a border. */
+.ui-stack {{ display:flex; gap:2px; height:14px; }}
+.ui-stack > div {{ height:100%; }}
+.ui-stack > div:first-child {{ border-radius:4px 3px 3px 4px; }}
+.ui-stack > div:last-child {{ border-radius:3px 4px 4px 3px; }}
+.ui-dim {{ color:{FAINT}; font-size:10px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; margin:14px 0 7px; }}
+.ui-dim:first-child {{ margin-top:0; }}
+.ui-legend {{ display:flex; flex-wrap:wrap; gap:14px; margin:0 0 12px; }}
+.ui-legend span {{ color:{MUTED}; font-size:11.5px; display:inline-flex; align-items:center; gap:6px; }}
+.ui-legend i {{ width:9px; height:9px; border-radius:2px; display:block; }}
+.ui-flag {{ color:{FAINT}; font-size:10px; font-weight:700; border:1px solid {BORDER2}; border-radius:4px; padding:0 4px; margin-left:6px; }}
 .ui-secline {{ color:{FAINT}; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; margin:16px 0 8px; display:flex; align-items:center; gap:6px; }}
 /* A section label opening a card would otherwise stack its own 16px on top of the
    card's 20px padding — 36px above the label against 8px below it, so the label read
