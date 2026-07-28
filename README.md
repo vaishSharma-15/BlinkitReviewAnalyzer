@@ -237,3 +237,32 @@ streamlit run app/rag_chatbot.py
 - The chatbot uses the markdown files in the docs folder as its knowledge base.
 - If an Anthropic API key is present in the environment, the app can generate answers grounded in retrieved context.
 - Without an API key, it falls back to a simple retrieval-based response.
+
+### Answer reliability on a deployed instance
+
+Answers degrade in tiers rather than failing. Best case, Gemini writes the answer. If the
+call fails, the app serves an extractive summary built from the enrichment labels already
+attached to the retrieved reviews — grounded and complete, just not written prose.
+
+Between those two sits the seed cache, which exists because the tiers above it are not
+under our control. `data/cache/` holds every response the pipeline has ever received, but
+it is gitignored (9MB+, regenerable), so a *deployed* copy starts cold and every question
+becomes a live free-tier API call. `data/cache_seed/` is the small committed subset — the
+eight suggested questions, pre-answered — so the path a visitor is most likely to click
+never depends on the network, the daily quota, or the key being set at all.
+
+```bash
+python -m src.warm_cache            # fill any missing seed entries
+python -m src.warm_cache --verify   # confirm every question hits; makes no API calls
+python -m src.warm_cache --force    # re-answer everything, after a prompt change
+```
+
+The cache key is `sha256(prompt_version + user_content)`, so a seeded entry is only served
+for a byte-identical request. Editing the prompt in `build_answer_request` (or bumping
+`PROMPT_VERSION`) retires the seed silently — `--verify` is what catches that, and it is
+worth running before any deploy that touched the prompt or the index.
+
+Failures are logged rather than swallowed. A call that exhausts its retries records the
+last error and the prompt version; a fallback to the extractive path records why. Those
+lines are the only way to tell a degraded deployment from a healthy one, since both still
+answer.

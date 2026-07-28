@@ -3,6 +3,7 @@ sidebar for the index-status check). Kept separate from tab rendering so the ret
 logic has no Streamlit-widget code mixed into it.
 """
 import json
+import logging
 import os
 from collections import Counter
 from pathlib import Path
@@ -10,9 +11,17 @@ from typing import List, Optional
 
 import streamlit as st
 
+logger = logging.getLogger(__name__)
+
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_DIR = ROOT / "data" / "index" / "lancedb"
 EMBED_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+
+# Half of the LLM disk-cache key (the other half is the request itself), so bumping this
+# retires every cached answer written under the old prompt. The per-version reasoning
+# lives with the prompt in build_answer_request, where a change to the wording is
+# actually made and the bump is easy to forget.
+PROMPT_VERSION = "rag-answer-v10"
 
 
 @st.cache_resource(show_spinner=False)
@@ -347,6 +356,118 @@ def is_out_of_retrieval_range(evidence: List[dict]) -> bool:
     return bool(distances) and min(distances) > OUT_OF_SCOPE_FLOOR
 
 
+def build_answer_request(query: str, evidence: List[dict]) -> dict:
+    """The exact request generate_structured_answer would send Gemini for this question.
+
+    Split out so src/warm_cache.py can pre-compute an answer under the identical
+    system_prompt, user_content and prompt_version. The disk cache is keyed on
+    sha256(prompt_version + user_content), so a seeded entry only ever gets served if the
+    request is byte-identical — building the prompt in two places would produce two keys
+    and a seed cache that silently never hits.
+
+    Callers must apply the smalltalk / empty-evidence / out-of-range guards first; this
+    assumes a question that has genuinely earned a generative answer.
+    """
+    # Each quote carries its enrichment labels, not just its text. Without the
+    # segment/barrier/theme fields the model can only paraphrase complaints in
+    # the abstract ("users are frustrated by delays"), which is what made answers
+    # to questions like "which segments are most frustrated?" read generically.
+    context = "\n\n".join(
+        f"[{i+1}] source={e['source']} sentiment={ui_sentiment(e['sentiment'])} "
+        f"barrier={e.get('barrier_type', 'none')} theme={e.get('theme_id', 'unclassified')} "
+        f"segments={_evidence_segments(e) or 'unknown'} date={str(e.get('date', ''))[:10]}\n"
+        f"\"{e['text'][:400]}\""
+        for i, e in enumerate(evidence)
+    )
+    # affected_segments describes the quotes shown under the answer, so the
+    # allowed list is the segments THIS evidence carries — not the whole
+    # taxonomy. Offering the taxonomy let the model name a segment it had read
+    # off the corpus-totals block ("which segment is most frustrated?" reported
+    # High Value Electronics Gambler with that segment in none of the 8 quotes),
+    # and the UI renders the field immediately above Supporting Evidence, where
+    # it reads as a description of them. Corpus totals still carry any claim
+    # about scale or ranking — in the prose, where the figure is stated and
+    # attributed, not as an unbacked chip.
+    #
+    # Same list in the prompt and in _coerce: asking for a label that is then
+    # discarded just moves the inconsistency out of sight.
+    seg_choices = _segment_labels(evidence)
+    system_prompt = (
+        "You are a product research assistant. Answer strictly from the numbered "
+        "evidence quotes below — real Blinkit user reviews. Do not invent facts or "
+        "use outside knowledge for the summary/themes/segments. Respond with ONLY a "
+        "JSON object, no markdown fences: "
+        '{"in_scope": true or false, "smalltalk": true or false, '
+        '"executive_summary": "2-3 sentence answer citing [n] evidence numbers", '
+        '"theme_breakdown": ["theme label", ...], '
+        '"affected_segments": ["segment label", ...], '
+        '"product_recommendations": ["short, directional product recommendation", ...]}. '
+        "FIRST decide in_scope, on the SUBJECT of the question only. Set in_scope=false, "
+        "and every other field empty, in exactly two cases: (a) the question is not about "
+        "Blinkit shoppers, their reviews, or their shopping/discovery behaviour — e.g. "
+        "general knowledge, chit-chat, coding, other companies, or facts about Blinkit as "
+        "a company rather than about its shoppers; (b) it asks you to perform a task or "
+        "transaction — booking, ordering, account or password help, customer support. "
+        "Then put ONE plain sentence in executive_summary saying you cannot answer it and "
+        "why, with no citations and no partial answer built from the quotes. "
+        "A greeting, a thank-you or a goodbye is NEITHER of those cases: set "
+        "smalltalk=true (with in_scope=false) and make executive_summary a short, warm "
+        "reply that invites a question about what shoppers say in their reviews. Never "
+        "tell someone who said hello that their question cannot be answered. "
+        "Otherwise in_scope=true. A question about shopper behaviour, segments, barriers, "
+        "categories, discovery or sentiment is ALWAYS in scope — including when the "
+        "retrieved quotes cover it only partly. Never decline such a question: answer it "
+        "from the corpus totals and whatever the quotes do support, and say plainly which "
+        "part is thinly evidenced. Weak evidence is a caveat to state, not a reason to "
+        "refuse. "
+        "theme_breakdown MUST use only these exact labels, and only those actually "
+        f"evidenced in the quotes: {', '.join(THEME_CHOICES)}. "
+        + ("affected_segments MUST use only these exact labels — the shopper segments "
+           "the quotes below actually carry — and only where the quote for that group "
+           f"supports the point: {', '.join(seg_choices)}. "
+           if seg_choices else
+           "affected_segments MUST be an empty list: none of the quotes below carries a "
+           "shopper segment, so there is no segment this evidence can name. ") +
+        "Do not invent new theme or segment labels; return an empty list if none apply. "
+        "Two kinds of input follow. CORPUS TOTALS are counts over every analysed "
+        "review — use them for any claim about scale, prevalence, ranking or which "
+        "group is 'most' anything, and quote the figure. The numbered EVIDENCE "
+        "quotes are what users actually said — use them for the substance of the "
+        "answer and cite them as [n]. Never infer prevalence from how many of the "
+        "quotes mention something, and never state a number that is not in the "
+        "corpus totals. "
+        "Be specific, not generic: answer the question that was asked directly in the "
+        "first sentence, and use the concrete detail in the quotes and their metadata — "
+        "name the actual categories, products, competitors, segments and sources the "
+        "evidence mentions, and say how many of the quotes support each point. If the "
+        "question asks which group or segment, lead with the segment labels in the "
+        "metadata rather than describing complaints in general. Never write a sentence "
+        "that would read the same for any other question. Cite [n] after each claim. "
+        "product_recommendations may reflect your own product judgment (unlike the other "
+        "fields, which must stay strictly evidence-grounded) — each must respond to a "
+        "specific problem in the quotes, naming it, not restate a generic best practice."
+    )
+    stats_block = _stats_block(corpus_stats())
+    user_content = (f"Question: {query}\n\n{stats_block}\n\nEVIDENCE:\n{context}"
+                    if stats_block else f"Question: {query}\n\nEvidence:\n{context}")
+    # v6: corpus totals added to the context, so cached v3-v5 answers (which were
+    # written without any prevalence data) must not be served.
+    # v9: greetings get a warm reply rather than the refusal. v8 added the
+    # in_scope gate, so cached v6 answers (written before the model could decline)
+    # must not be served for out-of-scope questions; v7 scoped that gate on
+    # evidence fit as well as subject, which declined real questions whose quotes
+    # were only a partial match.
+    # v10: affected_segments is constrained to the segments the retrieved quotes
+    # carry, so cached v9 answers (free to name any segment in the taxonomy, and
+    # observed doing it from the corpus-totals block) must not be served.
+    return {
+        "system_prompt": system_prompt,
+        "user_content": user_content,
+        "prompt_version": PROMPT_VERSION,
+        "seg_choices": seg_choices,
+    }
+
+
 def generate_structured_answer(query: str, evidence: List[dict], matched_themes: List[dict]) -> dict:
     """Returns {executive_summary, theme_breakdown: [str], affected_segments: [str],
     product_recommendations: [str], method}. Tries Gemini for a real synthesis first
@@ -371,130 +492,51 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
             "in it is close to this topic, so there is no evidence to answer from."
         )
 
-    if os.getenv("GEMINI_API_KEY"):
-        try:
-            from src.llm import DailyQuotaExhausted, call_llm
+    # Deliberately not gated on GEMINI_API_KEY being present. call_llm checks the disk
+    # cache — including the committed seed cache — before it needs a key at all, so
+    # gating here meant a keyless deployment skipped straight to the extractive answer
+    # while a perfectly good written answer sat unread on disk. A missing key is now
+    # call_llm's business: it logs and returns None, and the fallback below still runs.
+    try:
+        from src.llm import DailyQuotaExhausted, call_llm
 
-            # Each quote carries its enrichment labels, not just its text. Without the
-            # segment/barrier/theme fields the model can only paraphrase complaints in
-            # the abstract ("users are frustrated by delays"), which is what made answers
-            # to questions like "which segments are most frustrated?" read generically.
-            context = "\n\n".join(
-                f"[{i+1}] source={e['source']} sentiment={ui_sentiment(e['sentiment'])} "
-                f"barrier={e.get('barrier_type', 'none')} theme={e.get('theme_id', 'unclassified')} "
-                f"segments={_evidence_segments(e) or 'unknown'} date={str(e.get('date', ''))[:10]}\n"
-                f"\"{e['text'][:400]}\""
-                for i, e in enumerate(evidence)
-            )
-            # affected_segments describes the quotes shown under the answer, so the
-            # allowed list is the segments THIS evidence carries — not the whole
-            # taxonomy. Offering the taxonomy let the model name a segment it had read
-            # off the corpus-totals block ("which segment is most frustrated?" reported
-            # High Value Electronics Gambler with that segment in none of the 8 quotes),
-            # and the UI renders the field immediately above Supporting Evidence, where
-            # it reads as a description of them. Corpus totals still carry any claim
-            # about scale or ranking — in the prose, where the figure is stated and
-            # attributed, not as an unbacked chip.
-            #
-            # Same list in the prompt and in _coerce: asking for a label that is then
-            # discarded just moves the inconsistency out of sight.
-            seg_choices = _segment_labels(evidence)
-            system_prompt = (
-                "You are a product research assistant. Answer strictly from the numbered "
-                "evidence quotes below — real Blinkit user reviews. Do not invent facts or "
-                "use outside knowledge for the summary/themes/segments. Respond with ONLY a "
-                "JSON object, no markdown fences: "
-                '{"in_scope": true or false, "smalltalk": true or false, '
-                '"executive_summary": "2-3 sentence answer citing [n] evidence numbers", '
-                '"theme_breakdown": ["theme label", ...], '
-                '"affected_segments": ["segment label", ...], '
-                '"product_recommendations": ["short, directional product recommendation", ...]}. '
-                "FIRST decide in_scope, on the SUBJECT of the question only. Set in_scope=false, "
-                "and every other field empty, in exactly two cases: (a) the question is not about "
-                "Blinkit shoppers, their reviews, or their shopping/discovery behaviour — e.g. "
-                "general knowledge, chit-chat, coding, other companies, or facts about Blinkit as "
-                "a company rather than about its shoppers; (b) it asks you to perform a task or "
-                "transaction — booking, ordering, account or password help, customer support. "
-                "Then put ONE plain sentence in executive_summary saying you cannot answer it and "
-                "why, with no citations and no partial answer built from the quotes. "
-                "A greeting, a thank-you or a goodbye is NEITHER of those cases: set "
-                "smalltalk=true (with in_scope=false) and make executive_summary a short, warm "
-                "reply that invites a question about what shoppers say in their reviews. Never "
-                "tell someone who said hello that their question cannot be answered. "
-                "Otherwise in_scope=true. A question about shopper behaviour, segments, barriers, "
-                "categories, discovery or sentiment is ALWAYS in scope — including when the "
-                "retrieved quotes cover it only partly. Never decline such a question: answer it "
-                "from the corpus totals and whatever the quotes do support, and say plainly which "
-                "part is thinly evidenced. Weak evidence is a caveat to state, not a reason to "
-                "refuse. "
-                "theme_breakdown MUST use only these exact labels, and only those actually "
-                f"evidenced in the quotes: {', '.join(THEME_CHOICES)}. "
-                + ("affected_segments MUST use only these exact labels — the shopper segments "
-                   "the quotes below actually carry — and only where the quote for that group "
-                   f"supports the point: {', '.join(seg_choices)}. "
-                   if seg_choices else
-                   "affected_segments MUST be an empty list: none of the quotes below carries a "
-                   "shopper segment, so there is no segment this evidence can name. ") +
-                "Do not invent new theme or segment labels; return an empty list if none apply. "
-                "Two kinds of input follow. CORPUS TOTALS are counts over every analysed "
-                "review — use them for any claim about scale, prevalence, ranking or which "
-                "group is 'most' anything, and quote the figure. The numbered EVIDENCE "
-                "quotes are what users actually said — use them for the substance of the "
-                "answer and cite them as [n]. Never infer prevalence from how many of the "
-                "quotes mention something, and never state a number that is not in the "
-                "corpus totals. "
-                "Be specific, not generic: answer the question that was asked directly in the "
-                "first sentence, and use the concrete detail in the quotes and their metadata — "
-                "name the actual categories, products, competitors, segments and sources the "
-                "evidence mentions, and say how many of the quotes support each point. If the "
-                "question asks which group or segment, lead with the segment labels in the "
-                "metadata rather than describing complaints in general. Never write a sentence "
-                "that would read the same for any other question. Cite [n] after each claim. "
-                "product_recommendations may reflect your own product judgment (unlike the other "
-                "fields, which must stay strictly evidence-grounded) — each must respond to a "
-                "specific problem in the quotes, naming it, not restate a generic best practice."
-            )
-            stats_block = _stats_block(corpus_stats())
-            user_content = (f"Question: {query}\n\n{stats_block}\n\nEVIDENCE:\n{context}"
-                            if stats_block else f"Question: {query}\n\nEvidence:\n{context}")
-            # v6: corpus totals added to the context, so cached v3-v5 answers (which were
-            # written without any prevalence data) must not be served.
-            # v9: greetings get a warm reply rather than the refusal. v8 added the
-            # in_scope gate, so cached v6 answers (written before the model could decline)
-            # must not be served for out-of-scope questions; v7 scoped that gate on
-            # evidence fit as well as subject, which declined real questions whose quotes
-            # were only a partial match.
-            # v10: affected_segments is constrained to the segments the retrieved quotes
-            # carry, so cached v9 answers (free to name any segment in the taxonomy, and
-            # observed doing it from the corpus-totals block) must not be served.
-            raw = call_llm(system_prompt, user_content, "rag-answer-v10", json_mode=True)
-            if raw:
-                import re
+        req = build_answer_request(query, evidence)
+        seg_choices = req["seg_choices"]
+        raw = call_llm(req["system_prompt"], req["user_content"],
+                       req["prompt_version"], json_mode=True)
+        if raw:
+            import re
 
-                cleaned = re.sub(r"^```(json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
-                data = json.loads(cleaned)
-                if data.get("smalltalk") is True:
-                    reply = smalltalk_answer("greeting")
-                    if data.get("executive_summary"):
-                        reply["executive_summary"] = data["executive_summary"]
-                    return reply
-                if data.get("in_scope") is False:
-                    return _out_of_scope(
-                        data.get("executive_summary")
-                        or "That question is outside what the Blinkit review corpus can answer."
-                    )
-                return {
-                    "executive_summary": data.get("executive_summary", ""),
-                    # Enforced, not merely requested — see _coerce.
-                    "theme_breakdown": _coerce(data.get("theme_breakdown"), THEME_CHOICES),
-                    "affected_segments": _coerce(data.get("affected_segments"), seg_choices),
-                    "product_recommendations": data.get("product_recommendations", []),
-                    "method": "gemini",
-                }
-        except DailyQuotaExhausted:
-            st.info("Gemini daily quota exhausted — showing an extractive (non-generative) summary instead.")
-        except Exception:
-            pass
+            cleaned = re.sub(r"^```(json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
+            data = json.loads(cleaned)
+            if data.get("smalltalk") is True:
+                reply = smalltalk_answer("greeting")
+                if data.get("executive_summary"):
+                    reply["executive_summary"] = data["executive_summary"]
+                return reply
+            if data.get("in_scope") is False:
+                return _out_of_scope(
+                    data.get("executive_summary")
+                    or "That question is outside what the Blinkit review corpus can answer."
+                )
+            return {
+                "executive_summary": data.get("executive_summary", ""),
+                # Enforced, not merely requested — see _coerce.
+                "theme_breakdown": _coerce(data.get("theme_breakdown"), THEME_CHOICES),
+                "affected_segments": _coerce(data.get("affected_segments"), seg_choices),
+                "product_recommendations": data.get("product_recommendations", []),
+                "method": "gemini",
+            }
+    except DailyQuotaExhausted:
+        st.info("Gemini daily quota exhausted — showing an extractive (non-generative) summary instead.")
+    except Exception:
+        # Falling through to the extractive answer is the right behaviour — it is
+        # evidence-grounded and complete, so the user still gets a real answer. What
+        # was wrong was doing it silently: a rate-limited call, a timeout and a
+        # malformed response all looked identical to a working app, and the quality
+        # drop was invisible from the outside. The log line is what makes a
+        # degradation on a deployed instance diagnosable at all.
+        logger.exception("Generative answer failed; using the extractive fallback.")
 
     # Deterministic fallback.
     n = len(evidence)
