@@ -10,6 +10,7 @@ import streamlit as st
 
 from app import ui
 from app.data import load_enriched_df, scraped_count
+from app.tab_overview import segmented
 
 MATCH_LIMIT = 12
 
@@ -253,36 +254,27 @@ def _rating_bars(view):
             f'<div class="ui-vbars">{"".join(bars)}</div></div>')
 
 
-SEG_ICON = {"price_sensitivity": "tag", "family_stage": "users", "has_pet": "heart", "city_tier": "pin"}
-SEG_LABELS = {
-    "price_sensitivity=high": "Price-Sensitive", "price_sensitivity=low": "Price-Insensitive",
-    "family_stage=parent_young_child": "Parents", "family_stage=single": "Singles",
-    "family_stage=couple": "Couples", "has_pet=yes": "Pet Owners",
-    "city_tier=metro": "Metro", "city_tier=tier2": "Tier-2 City",
-}
-
-
 def _segments(view):
-    rows = []
-    for col in ["price_sensitivity", "family_stage", "has_pet", "city_tier"]:
-        known = view[view[col] != "unknown"]
-        for value, grp in known.groupby(col):
-            if len(grp) < 10:
-                continue
-            label = SEG_LABELS.get(f"{col}={value}", f"{col}={value}")
-            rows.append(((grp["sentiment"] < -0.2).mean(), len(grp), label, SEG_ICON.get(col, "user")))
-    rows.sort(key=lambda r: (-r[0], -r[1]))
-    rows = rows[:4]
-    if not rows:
-        return '<div class="ui-card"><div class="ui-card-title">User Segments</div><div class="ui-muted">No segment signals in view (segment fields are sparse in review text).</div></div>'
+    """The behaviour-defined shopper segments (src/segment.py), recomputed on the filtered
+    view like every other panel here — so filtering to, say, 'ice cream' shows which
+    segments carry that complaint rather than a fixed corpus-wide ranking."""
+    seg = segmented(view)
+    if seg.empty:
+        return ('<div class="ui-card"><div class="ui-card-title">Shopper Segments</div>'
+                '<div class="ui-muted">No reviews in this view state a segment-defining '
+                'behaviour.</div></div>')
+    rows = [(name, len(grp), float((grp["sentiment"] < -0.2).mean()))
+            for name, grp in seg.groupby("segment_name")]
+    rows.sort(key=lambda r: -r[1])
     cards = []
-    colors = [ui.NEG, "#f97316", ui.NEU, ui.GREEN]
-    for i, (rate, n, label, ic) in enumerate(rows):
+    for i, (label, n, rate) in enumerate(rows[:4]):
         cards.append(f'<div class="ui-segcard"><div class="ui-segcard-rank">#{i+1}</div>'
-                     f'<div class="ui-segcard-icon">{ui.icon(ic, size=15, color=ui.YELLOW_DK)}</div>'
-                     f'<div class="ui-segcard-pct" style="color:{colors[i]};">{rate:.0%}</div>'
-                     f'<div class="ui-segcard-name">{label}</div>'
-                     f'<div class="ui-segcard-sub">{ui.fmt_full(n)} reviews · negative rate</div></div>')
-    return (f'<div class="ui-card"><div class="ui-card-title">User Segments</div>'
-            f'<div class="ui-card-sub">Negative-sentiment rate by segment — who is most frustrated</div>'
+                     f'<div class="ui-segcard-icon">{ui.icon("users", size=15, color=ui.YELLOW_DK)}</div>'
+                     f'<div class="ui-segcard-pct">{ui.fmt_full(n)}</div>'
+                     f'<div class="ui-segcard-name">{ui.esc(label)}</div>'
+                     f'<div class="ui-segcard-sub">reviews · {rate:.0%} negative</div></div>')
+    return (f'<div class="ui-card"><div class="ui-card-title">Shopper Segments</div>'
+            f'<div class="ui-card-sub">Behaviour-defined segments in this view — '
+            f'{ui.fmt_full(len(seg))} of {ui.fmt_full(len(view))} reviews carry one, each '
+            f'earned by a verbatim quote from the review itself.</div>'
             f'<div class="ui-g4">{"".join(cards)}</div></div>')

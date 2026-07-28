@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 ENRICHED_PATH = ROOT / "data" / "enriched" / "enriched.jsonl"
 THEMES_PATH = ROOT / "data" / "themes" / "themes.jsonl"
 RAW_DIR = ROOT / "data" / "raw"
+SEG_TAXONOMY_PATH = ROOT / "data" / "segments" / "taxonomy.json"
+SEG_ASSIGNMENTS_PATH = ROOT / "data" / "segments" / "assignments.jsonl"
+SEG_MANIFEST_PATH = ROOT / "data" / "segments" / "manifest.json"
 
 # Kept in sync with src/schemas.py SOURCES — all seven must be checked, not just the
 # ones with data, so a genuinely-zero source (e.g. forum) still shows up as a row.
@@ -53,6 +56,58 @@ def load_enriched_df() -> pd.DataFrame:
         # dropped every YouTube/Q-Comm review out of the date-based coverage chart.
         df["date_parsed"] = pd.to_datetime(df["date"], errors="coerce", utc=True, format="ISO8601")
     return df
+
+
+@st.cache_data(show_spinner=False)
+def load_segment_taxonomy() -> List[dict]:
+    """The behaviour-defined segments derived from the reviews themselves (src/segment.py).
+
+    Distinct from the four segment_signals columns above, which are demographic slots a
+    public review almost never fills. Empty until `python -m src.segment discover` runs.
+    """
+    if not SEG_TAXONOMY_PATH.exists():
+        return []
+    return json.loads(SEG_TAXONOMY_PATH.read_text(encoding="utf-8")).get("segments", [])
+
+
+@st.cache_data(show_spinner=False)
+def load_segment_assignments() -> pd.DataFrame:
+    """One row per labelled review: id, segment_id, and the verbatim quote that earned
+    the label. Every quote here has already been checked against the review text by
+    src.segment — an assignment without one was recorded as unassigned, not shown."""
+    if not SEG_ASSIGNMENTS_PATH.exists():
+        return pd.DataFrame(columns=["id", "segment_id", "evidence_quote"])
+    rows = []
+    with open(SEG_ASSIGNMENTS_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                rows.append(json.loads(line))
+    return pd.DataFrame(rows)
+
+
+@st.cache_data(show_spinner=False)
+def segment_lookup() -> Dict[str, str]:
+    """{record id: segment display name} for every assigned review.
+
+    The vector index predates this phase and its evidence rows carry the old demographic
+    columns, but they do carry `id` — so the chat joins segments here rather than forcing
+    a re-embed of the whole corpus to add one field.
+    """
+    taxonomy = {s["segment_id"]: s["name"] for s in load_segment_taxonomy()}
+    assignments = load_segment_assignments()
+    if assignments.empty:
+        return {}
+    return {row.id: taxonomy.get(row.segment_id, "")
+            for row in assignments.itertuples()
+            if row.segment_id != "unassigned" and taxonomy.get(row.segment_id)}
+
+
+@st.cache_data(show_spinner=False)
+def load_segment_manifest() -> dict:
+    if not SEG_MANIFEST_PATH.exists():
+        return {}
+    return json.loads(SEG_MANIFEST_PATH.read_text(encoding="utf-8"))
 
 
 @st.cache_data(show_spinner=False)

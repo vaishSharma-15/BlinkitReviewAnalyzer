@@ -2,10 +2,17 @@
 Every figure is computed from the real enriched corpus via app.ui helpers; the whole page
 is one HTML flush so grid alignment is exact.
 """
+import pandas as pd
 import streamlit as st
 
 from app import ui
-from app.data import load_enriched_df, load_funnel, scraped_count
+from app.data import (
+    load_enriched_df,
+    load_funnel,
+    load_segment_assignments,
+    load_segment_taxonomy,
+    scraped_count,
+)
 
 
 def render():
@@ -38,6 +45,7 @@ def render():
         '<div class="ui-row">', _funnel(df, total, classified), "</div>",
         '<div class="ui-row ui-split">', _struggles(df), _concentration(df), "</div>",
         '<div class="ui-row ui-split">', _segments(df), _donut(pos, neu, neg, total), "</div>",
+        '<div class="ui-row">', _behaviour_segments(df), "</div>",
         '<div class="ui-row">', _segment_profile(df), "</div>",
         '<div class="ui-row">', _coverage(df), "</div>",
         '<div class="ui-row">', _recent(df), "</div>",
@@ -188,6 +196,23 @@ def _seg_rows(df):
     return out
 
 
+def segmented(df):
+    """`df` joined to its behaviour segment, keeping only reviews that earned one.
+
+    This is what "user segment" means everywhere in the app now: the behaviour-defined
+    segments derived from the reviews (src/segment.py), not the demographic slots the
+    enrichment pass leaves unknown for 98% of the corpus.
+    """
+    assignments = load_segment_assignments()
+    if assignments.empty or df.empty:
+        return pd.DataFrame()
+    names = {s["segment_id"]: s["name"] for s in load_segment_taxonomy()}
+    merged = df.merge(assignments, on="id", how="inner")
+    merged = merged[merged["segment_id"] != "unassigned"].copy()
+    merged["segment_name"] = merged["segment_id"].map(names)
+    return merged[merged["segment_name"].notna()]
+
+
 def _segments(df):
     """Negative-sentiment rate per segment, against the corpus average.
 
@@ -196,37 +221,104 @@ def _segments(df):
     the corpus average, so the comparison is positional and the bars need no second
     colour to carry it.
     """
-    rows = [r for r in _seg_rows(df) if r[2] >= MIN_SEGMENT_N]
-    if not rows:
+    seg = segmented(df)
+    if seg.empty:
         return ('<div class="ui-card"><div class="ui-card-title">Who\'s Most Frustrated</div>'
-                '<div class="ui-muted">No segment signals detected in this corpus.</div></div>')
-    rows.sort(key=lambda r: (-r[3], -r[2]))
+                '<div class="ui-muted">No segments assigned yet — run '
+                '<code>python -m src.segment discover</code> then <code>assign</code>.</div></div>')
     corpus_rate = float((df["sentiment"] < -0.2).mean())
+    rows = []
+    for name, grp in seg.groupby("segment_name"):
+        if len(grp) >= MIN_SEGMENT_N:
+            rows.append((name, len(grp), float((grp["sentiment"] < -0.2).mean())))
+    rows.sort(key=lambda r: (-r[2], -r[1]))
 
     bars = []
-    for _, label, n, rate in rows:
+    for label, n, rate in rows:
         bars.append(
-            f'<div class="ui-hb" title="{ui.esc(label)}: {rate:.0%} negative across {n:,} labelled reviews">'
-            f'<div class="ui-hb-label">{label}</div>'
+            f'<div class="ui-hb wide" title="{ui.esc(label)}: {rate:.0%} negative across {n:,} reviews">'
+            f'<div class="ui-hb-label">{ui.esc(label)}</div>'
             f'<div class="ui-hb-track"><div class="ui-hb-fill" style="width:{rate*100:.1f}%;background:{ui.NEG};"></div>'
             f'<div class="ui-hb-ref" style="left:{corpus_rate*100:.1f}%;"></div></div>'
             f'<div class="ui-hb-val">{rate:.0%} <span>· {ui.fmt_full(n)}</span></div></div>')
     return (f'<div class="ui-card"><div class="ui-card-title">Who\'s Most Frustrated</div>'
-            f'<div class="ui-card-sub">Negative-sentiment rate by segment, against the '
-            f'{corpus_rate:.0%} corpus average. Value shows rate · labelled reviews.</div>'
+            f'<div class="ui-card-sub">Negative-sentiment rate by shopper segment, against the '
+            f'{corpus_rate:.0%} corpus average. Value shows rate · reviews.</div>'
             f'{"".join(bars)}'
-            f'<div class="ui-hb-reflabel">┆ dashed rule = {corpus_rate:.0%} corpus average · '
-            f'segments under {MIN_SEGMENT_N} reviews are excluded</div></div>')
+            f'<div class="ui-hb-reflabel" style="margin-left:196px;">Dashed rule = {corpus_rate:.0%} corpus '
+            f'average · segments under {MIN_SEGMENT_N} reviews are excluded</div></div>')
+
+
+def _behaviour_segments(df):
+    """The segments derived from the reviews themselves (src/segment.py).
+
+    Every bar here is a count of reviews whose own words earned the label — the
+    pipeline threw away any assignment whose evidence quote could not be found in the
+    review text. The unassigned share is shown rather than hidden: it is most of the
+    corpus, and it is what strictness costs.
+    """
+    taxonomy = load_segment_taxonomy()
+    assignments = load_segment_assignments()
+    if not taxonomy or assignments.empty:
+        return ""
+
+    names = {s["segment_id"]: s["name"] for s in taxonomy}
+    defs = {s["segment_id"]: s["definition"] for s in taxonomy}
+    quotes = dict(zip(assignments["id"], assignments["evidence_quote"]))
+    merged = df.merge(assignments, on="id", how="inner")
+    labelled = len(merged)
+    if not labelled:
+        return ""
+
+    counts = merged[merged["segment_id"] != "unassigned"]["segment_id"].value_counts()
+    assigned = int(counts.sum())
+    biggest = int(counts.iloc[0]) if not counts.empty else 1
+
+    bars = []
+    for seg_id, n in counts.items():
+        bars.append(
+            f'<div class="ui-hb wide" title="{ui.esc(defs.get(seg_id, seg_id))}">'
+            f'<div class="ui-hb-label">{ui.esc(names.get(seg_id, seg_id))}</div>'
+            f'<div class="ui-hb-track"><div class="ui-hb-fill" style="width:{n/biggest*100:.1f}%;background:{ui.CAT[1]};"></div></div>'
+            f'<div class="ui-hb-val">{ui.fmt_full(int(n))} <span>· {n/assigned:.0%}</span></div></div>')
+
+    # One real quote per segment, so the definition is never the only thing on offer.
+    cards = []
+    for seg_id, n in list(counts.items())[:4]:
+        grp = merged[merged["segment_id"] == seg_id]
+        example = next((quotes.get(i, "") for i in grp["id"] if quotes.get(i)), "")
+        if not example:
+            continue
+        cards.append(
+            f'<div class="ui-segcard"><div style="color:{ui.TXT};font-size:13px;font-weight:700;">'
+            f'{ui.esc(names.get(seg_id, seg_id))}</div>'
+            f'<div style="color:{ui.MUTED};font-size:12px;line-height:1.5;margin:4px 0 8px;">'
+            f'{ui.esc(defs.get(seg_id, ""))}</div>'
+            f'<div style="color:{ui.TXT};font-size:12px;font-style:italic;line-height:1.5;'
+            f'border-left:2px solid {ui.YELLOW};padding-left:9px;">"{ui.esc(example[:180])}"</div></div>')
+
+    return (
+        f'<div class="ui-card"><div class="ui-card-title">Shopper Segments, Read From The Reviews</div>'
+        f'<div class="ui-card-sub">Behaviour-defined segments the LLM derived from the corpus, then '
+        f'assigned review by review. A label was only kept when a verbatim quote from that review '
+        f'supported it — {ui.fmt_full(assigned)} of {ui.fmt_full(labelled)} reviews '
+        f'({assigned/labelled:.0%}) cleared that bar.</div>'
+        f'{"".join(bars)}'
+        f'<div class="ui-hb-reflabel" style="margin-left:196px;">Value shows reviews · share of all segmented reviews. '
+        f'The remaining {ui.fmt_full(labelled - assigned)} reviews state no segment-defining behaviour '
+        f'and are left unassigned rather than guessed.</div>'
+        f'<div class="ui-secline">Evidence</div><div class="ui-g4">{"".join(cards)}</div></div>')
 
 
 def _segment_profile(df):
-    """Who the segments are and how much of the corpus actually carries a label.
+    """The demographic attributes reviewers happen to disclose about themselves.
 
-    Two panels, because they answer different questions and share no scale: sizes are
-    counts, coverage is a share of the corpus. The coverage panel is the honest half —
-    a review rarely says whether its writer has children or a dog, so three of the four
-    dimensions are unknown for nearly everyone, and any reading of them has to start
-    from that.
+    No longer "the segmentation" — that is now the behaviour-defined set above. This
+    stays as a secondary, clearly-bounded panel because the numbers are real and
+    occasionally useful, but it must never be mistaken for a shopper segmentation: a
+    review rarely says whether its writer has children or a dog, so three of the four
+    dimensions are unknown for nearly everyone. Sizes are counts, coverage is a share of
+    the corpus; the two are shown separately because they share no scale.
     """
     total = len(df)
     rows = _seg_rows(df)
@@ -261,11 +353,12 @@ def _segment_profile(df):
             f'<div class="ui-hb-val">{share:.1%} <span>· {ui.fmt_full(labelled)}</span></div></div>')
 
     return (
-        f'<div class="ui-card"><div class="ui-card-title">Who Our Shoppers Are</div>'
-        f'<div class="ui-card-sub">The eight segments the enrichment pipeline assigns, and how '
-        f'much of the corpus each dimension actually labels.</div>'
+        f'<div class="ui-card"><div class="ui-card-title">Self-Disclosed Demographics</div>'
+        f'<div class="ui-card-sub">Secondary to the shopper segments above, and not a segmentation: '
+        f'these are demographic attributes a reviewer happened to mention about themselves, on the '
+        f'rare occasions they did.</div>'
         f'<div class="ui-g2">'
-        f'<div><div class="ui-secline">Segment size</div>{"".join(size_html)}</div>'
+        f'<div><div class="ui-secline">Reviews disclosing each attribute</div>{"".join(size_html)}</div>'
         f'<div><div class="ui-secline">Labelled coverage</div>'
         f'<div class="ui-legend"><span><i style="background:{ui.CAT[1]};"></i>Labelled</span>'
         f'<span><i style="background:{ui.BORDER};"></i>Unknown</span></div>'

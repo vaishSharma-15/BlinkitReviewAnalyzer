@@ -335,6 +335,10 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
    shared baseline on the left and rounded only at the data end, so length is the only
    thing that varies. The reference rule is absolutely positioned inside the track. */
 .ui-hb {{ display:grid; grid-template-columns:112px 1fr 84px; align-items:center; gap:10px; margin-bottom:8px; }}
+/* Derived segment names ("Perishable Quality Skeptic") are longer than the fixed
+   demographic labels the 112px column was sized for, and truncating them loses the noun
+   that identifies the segment. */
+.ui-hb.wide {{ grid-template-columns:186px 1fr 104px; }}
 .ui-hb-label {{ color:{TXT}; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
 .ui-hb-track {{ position:relative; height:14px; background:{CARD2}; border:1px solid {BORDER}; border-radius:4px; }}
 .ui-hb-fill {{ position:absolute; left:0; top:0; height:100%; border-radius:3px 4px 4px 3px; min-width:2px; }}
