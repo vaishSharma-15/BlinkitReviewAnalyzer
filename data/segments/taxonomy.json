@@ -1,0 +1,67 @@
+{
+  "prompt_version": "segment-discover-v1",
+  "sample_size": 240,
+  "segments": [
+    {
+      "segment_id": "emergency_top_up_only",
+      "name": "Emergency Top Up Only",
+      "definition": "Shoppers who use quick commerce strictly for urgent last-minute needs or out-of-stock household items when stepping out is impossible.",
+      "inclusion_rule": "The review states ordering specifically because of an immediate kitchen emergency, a forgotten item, or needing something within minutes when unable to go out.",
+      "distinguished_from": "Unlike bulk or routine planners, these users rely on the app solely for instant rescue during sudden shortages.",
+      "example_quotes": [
+        "Since, I have a toddler it’s not easy to get out anytime when home alone to get these simple essential stuffs. I am really glad that Blinkit ease to get on my hands on essential things specially.",
+        "I was expecting guest in 15 minutes and had to replenish grocery and eatables for them. Had no time to visit market for the same.",
+        "Suppose you are in kitchen and missing something then just Blinkit and you will get it in 10 minutes. 👍"
+      ]
+    },
+    {
+      "segment_id": "discount_driven_hopper",
+      "name": "Discount Driven Hopper",
+      "definition": "Shoppers who constantly switch between different quick-commerce and e-commerce apps purely based on who offers the best coupons, cashbacks, and price cuts.",
+      "inclusion_rule": "The review explicitly mentions comparing app discounts, switching platforms due to better offers, or choosing based on coupons and cashbacks.",
+      "distinguished_from": "Unlike convenience-locked loyalists, these shoppers have no brand loyalty and jump apps for every rupee saved.",
+      "example_quotes": [
+        "We don't straightaway buy When we see charges we explore if we have zepto like option which is taking no charges and giving great deals at the same time",
+        "Instamart is way way better than Blinkit Discount bahut deta hai 😅",
+        "I use zepto because of the free delivery on minimum INR 100 order value, I don't think in India, UX of app can be a game changer, based on the offers the brands are offering I'll choose according to that."
+      ]
+    },
+    {
+      "segment_id": "perishable_quality_skeptic",
+      "name": "Perishable Quality Skeptic",
+      "definition": "Shoppers who repeatedly face issues with fresh food, vegetables, fruits, or frozen items arriving damaged, melted, or spoiled.",
+      "inclusion_rule": "The review specifically complains about rotten vegetables, melted ice cream, stale fruits, or poor handling of temperature-sensitive perishables.",
+      "distinguished_from": "Unlike packaged goods buyers who focus on pricing, these users judge the service entirely on the physical condition of fresh and frozen items.",
+      "example_quotes": [
+        "Ice creams are melting, due to lack of icy packs that are used previously in home delivery.",
+        "Ordered icecream candy and tub. But received melted icecream. Worst for ordering icecream or freezed items. 0/10 stars",
+        "sabziya and fruits taza hote hi nahi kabhi, freeze se nikal ke itne cold deti hai k fruits kha nahi sakte usi vakht, sabziya mix hoti hai todi achchi aur thodi bigadi huyi"
+      ]
+    },
+    {
+      "segment_id": "high_value_electronics_gambler",
+      "name": "High Value Electronics Gambler",
+      "definition": "Shoppers who order expensive electronics, gadgets, or accessories through quick delivery apps and face severe post-purchase distress over defective items and unhelpful return policies.",
+      "inclusion_rule": "The review details purchasing gadgets, speakers, joysticks, or electronics and facing rejection during return requests or receiving counterfeit items.",
+      "distinguished_from": "Unlike routine grocery buyers, these customers deal with high financial stakes and inflexible return windows for non-grocery items.",
+      "example_quotes": [
+        "I purchased a boat 108 stone it was damaged and they are not refunding the speaker they are saying to go to claim boat warranty",
+        "worst experience i ordered a sony joystick the outside pack was original but inside it is another brand something like ch its not used to play ps5 worst.",
+        "Guys pls dont buy electronics from blinkit agar inka kuch product bekar aaya too ye lot refund bhi nahi dege"
+      ]
+    },
+    {
+      "segment_id": "convenience_addicted_loyalist",
+      "name": "Convenience Addicted Loyalist",
+      "definition": "Shoppers who have completely replaced offline kirana shopping with quick commerce due to the sheer comfort of doorstep delivery and saving physical travel effort.",
+      "inclusion_rule": "The review expresses deep reliance on quick commerce for everyday orders, praising the time saved and avoidance of physical markets despite minor gripes.",
+      "distinguished_from": "Unlike price-sensitive critics or emergency-only users, these customers use quick apps habitually for regular household restocking.",
+      "example_quotes": [
+        "I ordered everything online from tissue to television never had any major complaint my mother also started ordering vegetables and milk every day online now our offline spending near to 5%",
+        "as a customer i am toh happy, don't have to go anywhere for a package of oil or atta that do far below then retail store 😂",
+        "i think blinkit is the best grocery shopping app of India on time delivery polite and helpful delivery partner and products quality make it better than others"
+      ]
+    }
+  ],
+  "rejected": []
+}

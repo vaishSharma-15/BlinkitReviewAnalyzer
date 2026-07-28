@@ -1,0 +1,21 @@
+{
+  "prompt_version": "segment-assign-v1",
+  "taxonomy_version": "segment-discover-v1",
+  "total_records": 4110,
+  "labelled": 4110,
+  "assigned": 1945,
+  "unassigned": 2165,
+  "assigned_share": 0.4732,
+  "counts": {
+    "unassigned": 2165,
+    "perishable_quality_skeptic": 968,
+    "convenience_addicted_loyalist": 323,
+    "high_value_electronics_gambler": 265,
+    "emergency_top_up_only": 230,
+    "discount_driven_hopper": 159
+  },
+  "rejected": {
+    "unverifiable_quote": 19
+  },
+  "quota_exhausted_stopped_early": false
+}

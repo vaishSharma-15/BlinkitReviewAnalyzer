@@ -145,6 +145,39 @@ categories) was tried first and rejected: on this corpus it found only 3 cluster
 questions. Supervised classification against the fixed taxonomy leaves only 13.9%
 `unclassified`.
 
+## Phase 04b — Segment
+
+`python -m src.segment discover` then `python -m src.segment assign` derives the shopper
+segments **from the reviews themselves** and labels every record against them, per
+`prompts/segment_discover.md` and `prompts/segment_assign.md`.
+
+**Why this exists alongside Phase 04's `segment_signals`.** Those four fields
+(`family_stage`, `city_tier`, `price_sensitivity`, `has_pet`) are demographic slots, and
+a public app-store review almost never states a demographic. The enrich prompt is right
+to answer `unknown` rather than guess — which is why three of the four are `unknown` for
+98–99% of the corpus. The labels are honest and nearly empty. This phase segments on
+what reviews *do* state: how people shop, what they refuse to buy, what they compare
+against.
+
+**Discover** sends a stratified sample (spread across sources and sentiment bands, since
+a plain sample of this corpus is ~89% Play Store and ~60% negative) and asks for 4–7
+segments defined by stated behaviour, each carrying verbatim example quotes. Segments
+are explicitly forbidden from being defined by age, gender, income, occupation, city or
+family — a review does not report those, so such a segment would be invention. The
+result is frozen to `data/segments/taxonomy.json` so later runs classify against a
+stable list.
+
+**Assign** classifies every record against that frozen taxonomy, and each assignment
+must carry an `evidence_quote` copied verbatim from the review.
+
+**The no-guesswork rule is enforced in code, not requested in the prompt.** Every quote
+is checked against its review's own text (`src/segment.py:quote_supported`, forgiving
+about unicode-quote and whitespace reformatting, unforgiving about everything else). A
+quote that isn't there means the label is discarded and the record recorded as
+`unassigned` — so a guess costs the model the label instead of reaching the dashboard. An
+`off_taxonomy` id is dropped the same way. `data/segments/manifest.json` reports both
+rejection counts, so the cost of the rule is a number you can read rather than a claim.
+
 ## Phase 05 — Cluster (secondary check only)
 
 `python -m src.cluster --config config.yaml --input data/clustered/unclassified.jsonl`
