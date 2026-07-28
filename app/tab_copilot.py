@@ -227,10 +227,23 @@ def _scroll_to(idx: int):
     the container back to the bottom. Timed jumps kept losing the last of those races,
     which is why the tail of the answer was still what you landed on. The loop stops the
     moment the reader scrolls, so it never fights a deliberate scroll.
+
+    Every call carries a nonce, and it is load-bearing rather than decoration. This runs
+    twice for one question — once before the blocking call, once on the rerun that swaps
+    in the answer — and Streamlit identifies a component by its content, so two calls with
+    the same idx produced identical srcdoc and the iframe was never remounted. The second
+    script therefore never executed, which is precisely the pass that needs it: that is
+    when the full answer renders and the scroll container pins itself to the bottom. A
+    slow LLM call hid this, because the first hold was usually still running when the
+    answer arrived. Once answers started coming back instantly from cache, nothing held
+    the scroll at all and the tail was what you landed on.
     """
+    nonce = st.session_state.get("copilot_scroll_nonce", 0) + 1
+    st.session_state.copilot_scroll_nonce = nonce
     components.html(
         f"""
         <script>
+        // nonce {nonce} — forces a fresh iframe so this script actually runs. See docstring.
         const doc = window.parent.document;
         let released = false;
         // Any real scroll intent hands control straight back to the reader.
