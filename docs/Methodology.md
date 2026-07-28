@@ -37,8 +37,13 @@ how they find products, what stops them trying something new. Most reviews are a
 delivery speed or app bugs, so most are set aside. This leaves **4,110**.
 
 **Label.** Each surviving review is tagged with a category, the barrier it describes,
-the shopper's sentiment (positive to negative), signals about who they are (parent, pet
-owner, price-sensitive, city type), and one theme.
+the shopper's sentiment (positive to negative), any attribute the writer happens to
+disclose about themselves (parent, pet owner, price-sensitive, city type), and one theme.
+
+**Segment.** Separately, each review is matched to a shopper segment defined by *how the
+person shops* rather than who they are — see [How shoppers are segmented](#how-shoppers-are-segmented).
+The disclosed attributes above are kept, but they are not the segmentation: a review
+almost never mentions them, so they sit unknown for 98–99% of the corpus.
 
 | Stage | Reviews |
 |---|---|
@@ -113,6 +118,58 @@ else, then Habit & Reorder, then Price & Value. Each theme is also matched to th
 research questions it answers — **all eight are currently answered**, by between one and
 nine themes each.
 
+### How shoppers are segmented
+
+Segments describe **how someone shops, not who they are**. This is a deliberate change of
+approach, and the reason is simple: a public app-store review almost never states a
+demographic. Nobody writes "as a metro parent, my ice cream arrived melted." They write
+"my ice cream arrived melted."
+
+The pipeline originally tried to infer four demographic attributes, and the result was
+honest but nearly empty:
+
+| Attribute | Reviews labelled | Share |
+|---|---|---|
+| Price sensitivity | 782 | 19.0% |
+| Life stage | 96 | 2.3% |
+| City tier | 83 | 2.0% |
+| Pet ownership | 29 | 0.7% |
+
+A dimension that can place 0.7% of people is not a segmentation. So the segments are now
+derived from the reviews themselves, defined by stated behaviour:
+
+| Segment | Reviews | Negative rate | vs. 60% corpus average |
+|---|---|---|---|
+| High Value Electronics Gambler | 265 | 95% | +35pp |
+| Perishable Quality Skeptic | 968 | 86% | +26pp |
+| Discount Driven Hopper | 159 | 57% | −3pp |
+| Emergency Top Up Only | 230 | 10% | −50pp |
+| Convenience Addicted Loyalist | 323 | 5% | −55pp |
+
+The difference is not just coverage, it is whether the split *separates* anything. The
+largest old group, Price-Sensitive (667 reviews), sits at 60% negative — exactly the
+corpus average, so it distinguishes nobody. The old spread that does exist comes from
+groups too small to trust (Singles n=25, Metro n=17) or from a near-tautology
+(Price-Insensitive, at 7%, is largely "people with nothing to complain about"). The
+behaviour segments separate on real volume: the two angriest are 265 and 968 reviews, and
+they sit 26–35pp above average. That points at something actionable — cold chain, and
+returns on non-grocery items.
+
+**A label is only kept when a verbatim quote from that same review supports it.** The
+quote is checked against the review text in code; if it isn't there, the label is thrown
+away and the review is left unassigned. 1,945 of 4,110 reviews (47%) cleared that bar and
+19 labels were rejected outright. The remaining 53% state no segment-defining behaviour
+and are left unassigned rather than guessed.
+
+One limitation worth stating: these are stances toward the service, not identities. The
+same person could write one review as a Perishable Quality Skeptic and another as an
+Emergency Top Up user. The segments describe a relationship to the product, so they
+cannot be summed into "our customer base is X% Y."
+
+The four demographic attributes are still shown on the Overview tab, under
+**Self-Disclosed Demographics** — real numbers, clearly bounded, and explicitly not the
+segmentation.
+
 ### In the Insight Engine chat: retrieving
 
 The 4,110 filtered reviews are stored in a **vector database** — a search index that
@@ -132,17 +189,22 @@ In detail, five steps:
    meaning — a question about "expensive" surfaces reviews saying "overpriced" or
    "cheaper on Zepto", even though neither uses the word.
 3. **Those reviews go to the AI with their labels attached** — source, sentiment,
-   barrier, theme, shopper type — which is why answers can name specific groups and
+   barrier, theme, shopper segment — which is why answers can name specific groups and
    categories instead of speaking in generalities.
 4. **The AI returns** a summary, the themes involved, who's affected, and
-   recommendations, in one request.
+   recommendations, in one request. The "who's affected" list is restricted to the
+   segments the eight retrieved quotes actually carry, and that restriction is applied in
+   code, not merely asked for in the prompt. Corpus-wide claims about which segment is
+   *most* anything belong in the summary sentence, where the figure is stated and
+   sourced — not as a bare label implying the quotes below support it when they don't.
 5. **The quotes are listed underneath, numbered**, so every `[3]` in the answer links to
    the review behind it.
 
 The reason for step 1 is worth stating plainly. Eight quotes tell you *what* people say,
 but nothing about *how many* people say it. Without the totals, a question like "which
 segment is most frustrated?" would be answered from whichever eight reviews came back.
-With them, it is answered from all 667 price-sensitive reviews. So:
+With them, it is answered from all 968 Perishable Quality Skeptic reviews, against every
+other segment's rate. So:
 
 > **Totals answer "how much". Quotes answer "what".** The AI is told to use the totals
 > for any claim about scale or ranking, never to infer prevalence from how many of its
@@ -261,6 +323,11 @@ in §4.
    (3,950 reviews vs. today's 4,110). Re-run it before quoting these figures externally.
 6. **Positive/negative is a cut-off, not a fact** — reviews are scored on a scale and
    split at a threshold, so the exact percentages shift if the threshold moves.
+7. **Just under half the corpus carries a shopper segment** — 1,945 of 4,110 (47%). The
+   rest state no segment-defining behaviour and are deliberately left unassigned, so
+   every segment percentage is a share of the segmented reviews, not of all reviews.
+8. **Segments are stances, not people** — one shopper can appear in different segments in
+   different reviews, so the segment sizes cannot be added up into a customer base.
 
 ---
 
@@ -270,6 +337,8 @@ in §4.
 python -m src.normalize   --config config.yaml    # clean + dedupe
 python -m src.relevance   --config config.yaml    # filter for relevance
 python -m src.enrich      --config config.yaml    # labels + themes
+python -m src.segment discover                    # derive the shopper segments
+python -m src.segment assign                      # label every review against them
 python -m src.synthesize  --config config.yaml    # theme summaries
 python -m src.validate    --config config.yaml    # the quality report
 python -m src.index       --config config.yaml    # search index for the app

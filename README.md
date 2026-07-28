@@ -178,6 +178,29 @@ quote that isn't there means the label is discarded and the record recorded as
 `off_taxonomy` id is dropped the same way. `data/segments/manifest.json` reports both
 rejection counts, so the cost of the rule is a number you can read rather than a claim.
 
+**Result.** 1,945 of 4,110 reviews (47.3%) carry a segment; 19 labels were rejected for an
+unverifiable quote. Against a 60% corpus negative rate:
+
+| Segment | n | Negative | vs corpus |
+|---|---|---|---|
+| High Value Electronics Gambler | 265 | 95% | +35pp |
+| Perishable Quality Skeptic | 968 | 86% | +26pp |
+| Discount Driven Hopper | 159 | 57% | −3pp |
+| Emergency Top Up Only | 230 | 10% | −50pp |
+| Convenience Addicted Loyalist | 323 | 5% | −55pp |
+
+The point of the change is separation, not just coverage. The largest demographic group,
+Price-Sensitive (n=667), sits at 60% negative — the corpus average exactly, distinguishing
+nobody. What spread the old dimensions did show came from groups too small to trust
+(Singles n=25, Metro n=17) or from a near-tautology (Price-Insensitive at 7% is largely
+"people with nothing to complain about"). The behaviour segments separate on real volume:
+the two angriest are 265 and 968 reviews at 26–35pp above average, which points at cold
+chain and at returns on non-grocery items.
+
+Segments are stances, not identities — one shopper can write one review as a Perishable
+Quality Skeptic and another as an Emergency Top Up user — so the sizes describe a
+relationship to the service and cannot be summed into a customer base.
+
 ## Phase 05 — Cluster (secondary check only)
 
 `python -m src.cluster --config config.yaml --input data/clustered/unclassified.jsonl`

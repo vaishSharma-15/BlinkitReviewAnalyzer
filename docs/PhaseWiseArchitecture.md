@@ -6,16 +6,21 @@ This repository is designed to turn public Blinkit-related user feedback into va
 
 ## 2. End-to-end architecture
 
-The system follows eight sequential stages:
+The system follows nine sequential stages:
 
 1. Ingest
 2. Normalize
 3. Relevance gate
 4. Enrich
+4b. Segment
 5. Cluster
 6. Synthesize
 7. Validate
 8. Index and serve
+
+Segment is numbered 4b rather than 5 because it was added after the original eight were
+built and running. It depends only on Enrich's output, so renumbering everything
+downstream would have broken every existing reference for no gain.
 
 Each stage reads from the previous output directory and writes to its own output directory. No stage mutates upstream files.
 
@@ -88,6 +93,43 @@ Key concerns:
 - Use a closed vocabulary for categories, behaviour signals, barrier types, and segment signals.
 - Enrichment should be deterministic and auditable.
 - Failed parses should be quarantined rather than silently dropped.
+
+Note on `segment_signals`. The four fields here (`family_stage`, `city_tier`,
+`price_sensitivity`, `has_pet`) are demographic slots, and a public review almost never
+states a demographic. The prompt is right to answer `unknown` rather than guess, which is
+why three of the four end up unknown for 98–99% of the corpus. They are retained as
+self-disclosed attributes, but they are not the shopper segmentation — see Phase 04b.
+
+### Phase 04b — Segment
+
+Purpose:
+- Derive shopper segments from the reviews themselves, defined by stated behaviour rather
+  than demographics, and assign every record to one or to `unassigned`.
+
+Inputs:
+- Enriched records
+
+Outputs:
+- `data/segments/taxonomy.json` — the frozen segment definitions
+- `data/segments/assignments.jsonl` — one row per record, with its evidence quote
+- `data/segments/manifest.json` — counts, including what was rejected
+
+Key concerns:
+- **Discovery runs on a stratified sample.** A plain sample of this corpus is ~89% Play
+  Store and ~60% negative, which would yield segments describing the sampling bias.
+- **Segments may not be defined by demographics.** Age, gender, income, occupation, city
+  and family are explicitly forbidden in the prompt: a review does not report those, so
+  such a segment would be invention rather than observation.
+- **The taxonomy is frozen before assignment**, so classification runs against a stable
+  list and re-runs stay comparable.
+- **Every assignment must carry a verbatim `evidence_quote`, checked in code.** The quote
+  is matched against its own review's text; failure discards the label and records the
+  row as `unassigned`. An `off_taxonomy` id is dropped the same way. This is enforcement,
+  not instruction — a guess costs the model the label rather than reaching the dashboard.
+- **Rejection counts are published** in the manifest, so the cost of the rule is a number
+  a reader can check rather than a claim.
+- Coverage is expected to be partial. Assigning every record would mean guessing on
+  reviews that state no segment-defining behaviour.
 
 ### Phase 05 — Cluster
 
@@ -165,6 +207,7 @@ The architecture maps directly to the repository layout:
 - data/raw/ for raw ingest output
 - data/normalized/ for normalized records
 - data/enriched/ for enriched records
+- data/segments/ for the shopper-segment taxonomy and per-record assignments
 - data/themes/ for synthesized themes
 - data/gold/ for the human-labelled validation set
 - reports/ for the scorecard
