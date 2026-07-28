@@ -94,10 +94,20 @@ THEME_CHOICES = [
     "Life-Event Triggers", "Cross-Platform Comparison",
 ]
 
-SEGMENT_CHOICES = [
-    "Price-Sensitive", "Price-Insensitive", "Parents", "Singles", "Couples",
-    "Pet Owners", "Metro", "Tier-2 City",
-]
+def segment_choices() -> List[str]:
+    """Every behaviour segment in the frozen taxonomy (src/segment.py), named exactly as
+    the dashboard names them.
+
+    Read from the taxonomy rather than hardcoded, so adding or renaming a segment is one
+    pipeline re-run and not an edit in three files. The old hardcoded list was the eight
+    demographic labels, which no longer describe how the app segments anyone.
+
+    This is the vocabulary of the whole corpus, NOT the list an answer may report — that
+    is _segment_labels(evidence), the segments the retrieved quotes actually carry.
+    """
+    from app.data import load_segment_taxonomy
+
+    return [s["name"] for s in load_segment_taxonomy()]
 
 # Which theme a barrier label belongs under, so the extractive path's barrier counts can
 # be reported in theme vocabulary instead of raw enrichment keys like "trust_quality".
@@ -132,19 +142,6 @@ def _coerce(values, allowed: List[str]) -> List[str]:
     return out
 
 
-# Enrichment values -> the display labels the dashboard uses (app/tab_overview.SEG_LABELS).
-SEGMENT_DISPLAY = {
-    ("price_sensitivity", "high"): "Price-Sensitive",
-    ("price_sensitivity", "low"): "Price-Insensitive",
-    ("family_stage", "parent_young_child"): "Parents",
-    ("family_stage", "single"): "Singles",
-    ("family_stage", "couple"): "Couples",
-    ("has_pet", "yes"): "Pet Owners",
-    ("city_tier", "metro"): "Metro",
-    ("city_tier", "tier2"): "Tier-2 City",
-}
-
-
 @st.cache_data(show_spinner=False)
 def corpus_stats() -> dict:
     """Whole-corpus aggregates: theme sizes and per-segment negative rates.
@@ -165,21 +162,24 @@ def corpus_stats() -> dict:
             for _, r in rows.iterrows()
         ]
     if "evidence" in tables:
+        from app.data import segment_lookup
+
         df = db.open_table("evidence").to_pandas()
         out["total"] = len(df)
-        for field in ["family_stage", "city_tier", "price_sensitivity", "has_pet"]:
-            if field not in df.columns:
-                continue
-            known = df[df[field] != "unknown"]
-            for value, grp in known.groupby(field):
-                label = SEGMENT_DISPLAY.get((field, value))
-                # Same floor the dashboard uses, so tiny groups don't post wild rates.
-                if label and len(grp) >= 10:
-                    out["segments"].append({
-                        "name": label, "n": len(grp),
-                        "negative_rate": round(float((grp["sentiment"] < -0.2).mean()), 3),
-                    })
-    out["segments"].sort(key=lambda s: -s["negative_rate"])
+        # Behaviour segments, joined on id — the index predates this phase and its rows
+        # still carry the old demographic columns, which the app no longer segments on.
+        lookup = segment_lookup()
+        df = df.assign(segment_name=df["id"].map(lookup))
+        named = df[df["segment_name"].notna() & (df["segment_name"] != "")]
+        out["segmented_total"] = len(named)
+        for name, grp in named.groupby("segment_name"):
+            # Same floor the dashboard uses, so tiny groups don't post wild rates.
+            if len(grp) >= 10:
+                out["segments"].append({
+                    "name": name, "n": len(grp),
+                    "negative_rate": round(float((grp["sentiment"] < -0.2).mean()), 3),
+                })
+    out["segments"].sort(key=lambda s: -s["n"])
     return out
 
 
@@ -206,25 +206,30 @@ def ui_sentiment(score: float) -> str:
 
 
 def _evidence_segments(e: dict) -> str:
-    """The segment labels attached to one quote, for the model's context block."""
-    got = [SEGMENT_DISPLAY[(f, e.get(f))] for f in
-           ["family_stage", "city_tier", "price_sensitivity", "has_pet"]
-           if (f, e.get(f)) in SEGMENT_DISPLAY]
-    return ", ".join(got)
+    """The behaviour segment attached to one quote, for the model's context block.
+
+    Joined on id rather than read off the row: the index predates the segment phase, so
+    its rows still carry the demographic columns and know nothing about this label. A
+    quote whose review earned no segment says 'unknown' — the prompt must not offer the
+    model a label the pipeline refused to assign.
+    """
+    from app.data import segment_lookup
+
+    return segment_lookup().get(e.get("id", ""), "")
 
 
 def _segment_labels(evidence: List[dict]) -> List[str]:
-    """Dominant segment per dimension, named exactly as the Overview tab names it."""
-    labels = []
-    for field in ["family_stage", "city_tier", "price_sensitivity", "has_pet"]:
-        counts = Counter(e[field] for e in evidence if e.get(field, "unknown") != "unknown")
-        if not counts:
-            continue
-        top_value, _ = counts.most_common(1)[0]
-        label = SEGMENT_DISPLAY.get((field, top_value))
-        if label and label not in labels:
-            labels.append(label)
-    return labels
+    """The behaviour segments present in the retrieved quotes, commonest first.
+
+    Same vocabulary as segment_choices(), so the extractive fallback and the generative
+    path name segments identically — a reader switching between them should not see the
+    corpus described in two languages.
+    """
+    from app.data import segment_lookup
+
+    lookup = segment_lookup()
+    counts = Counter(name for e in evidence if (name := lookup.get(e.get("id", ""))))
+    return [name for name, _ in counts.most_common()]
 
 
 # --- Scope guard -----------------------------------------------------------
@@ -381,6 +386,19 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 f"\"{e['text'][:400]}\""
                 for i, e in enumerate(evidence)
             )
+            # affected_segments describes the quotes shown under the answer, so the
+            # allowed list is the segments THIS evidence carries — not the whole
+            # taxonomy. Offering the taxonomy let the model name a segment it had read
+            # off the corpus-totals block ("which segment is most frustrated?" reported
+            # High Value Electronics Gambler with that segment in none of the 8 quotes),
+            # and the UI renders the field immediately above Supporting Evidence, where
+            # it reads as a description of them. Corpus totals still carry any claim
+            # about scale or ranking — in the prose, where the figure is stated and
+            # attributed, not as an unbacked chip.
+            #
+            # Same list in the prompt and in _coerce: asking for a label that is then
+            # discarded just moves the inconsistency out of sight.
+            seg_choices = _segment_labels(evidence)
             system_prompt = (
                 "You are a product research assistant. Answer strictly from the numbered "
                 "evidence quotes below — real Blinkit user reviews. Do not invent facts or "
@@ -411,8 +429,12 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                 "refuse. "
                 "theme_breakdown MUST use only these exact labels, and only those actually "
                 f"evidenced in the quotes: {', '.join(THEME_CHOICES)}. "
-                "affected_segments MUST use only these exact labels, and only where the quotes "
-                f"actually show that group: {', '.join(SEGMENT_CHOICES)}. "
+                + ("affected_segments MUST use only these exact labels — the shopper segments "
+                   "the quotes below actually carry — and only where the quote for that group "
+                   f"supports the point: {', '.join(seg_choices)}. "
+                   if seg_choices else
+                   "affected_segments MUST be an empty list: none of the quotes below carries a "
+                   "shopper segment, so there is no segment this evidence can name. ") +
                 "Do not invent new theme or segment labels; return an empty list if none apply. "
                 "Two kinds of input follow. CORPUS TOTALS are counts over every analysed "
                 "review — use them for any claim about scale, prevalence, ranking or which "
@@ -442,7 +464,10 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
             # must not be served for out-of-scope questions; v7 scoped that gate on
             # evidence fit as well as subject, which declined real questions whose quotes
             # were only a partial match.
-            raw = call_llm(system_prompt, user_content, "rag-answer-v9", json_mode=True)
+            # v10: affected_segments is constrained to the segments the retrieved quotes
+            # carry, so cached v9 answers (free to name any segment in the taxonomy, and
+            # observed doing it from the corpus-totals block) must not be served.
+            raw = call_llm(system_prompt, user_content, "rag-answer-v10", json_mode=True)
             if raw:
                 import re
 
@@ -462,7 +487,7 @@ def generate_structured_answer(query: str, evidence: List[dict], matched_themes:
                     "executive_summary": data.get("executive_summary", ""),
                     # Enforced, not merely requested — see _coerce.
                     "theme_breakdown": _coerce(data.get("theme_breakdown"), THEME_CHOICES),
-                    "affected_segments": _coerce(data.get("affected_segments"), SEGMENT_CHOICES),
+                    "affected_segments": _coerce(data.get("affected_segments"), seg_choices),
                     "product_recommendations": data.get("product_recommendations", []),
                     "method": "gemini",
                 }
