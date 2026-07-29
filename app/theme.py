@@ -264,7 +264,7 @@ def inject_theme():
             top: 56px;
             z-index: 15;
             background: {BACKGROUND};
-            padding-bottom: 14px;
+            padding-bottom: 18px;
         }}
         /* Answers pass behind the banner, and a hard edge made them look like they were
         sliding *into* the heading card. This fades the last 22px of page background out
@@ -276,11 +276,19 @@ def inject_theme():
             left: 0;
             right: 0;
             top: 100%;
-            height: 22px;
+            height: 14px;
             background: linear-gradient(180deg, {BACKGROUND} 0%, rgba(247, 249, 251, 0) 100%);
             pointer-events: none;
         }}
         .st-key-cp_head {{ position: relative; }}
+        /* Narrow windows. Streamlit columns are flex children that shrink indefinitely,
+        so a four-column filter bar squeezes its dropdowns down to "A…" and breaks Reset
+        across two lines rather than moving anything to a second row. Given a floor and
+        permission to wrap, each control keeps a usable width. */
+        @media (max-width: 1180px) {{
+            [data-testid="stMain"] [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+            [data-testid="stMain"] [data-testid="stColumn"] {{ flex: 1 1 220px; min-width: 220px; }}
+        }}
         .st-key-cp_clear {{
             position: absolute;
             top: 14px;
@@ -313,6 +321,14 @@ def inject_theme():
             font-weight: 600;
             padding: 7px 14px !important;
             box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+        }}
+        /* Narrow windows: the banner gives up its reserved corner (see ui.py's media
+        rules), so the button stops floating in it and takes its own line under the
+        heading rather than sitting on top of the title. Placed after the rules above
+        because it overrides them and ties with them on specificity. */
+        @media (max-width: 1180px) {{
+            .st-key-cp_clear {{ position: static; margin: 10px 0 0; }}
+            .st-key-cp_clear .stButton {{ justify-content: flex-start; }}
         }}
         .st-key-cp_clear button:hover {{
             border-color: {ON_PRIMARY} !important;

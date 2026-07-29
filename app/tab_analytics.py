@@ -47,6 +47,8 @@ def render():
     src_opts = ["All sources"] + [ui.SOURCE_META.get(s, (s, ""))[0] for s in df["source"].value_counts().index]
     sent_opts = ["All sentiment", "Positive", "Neutral", "Negative"]
 
+    # Wraps to two rows on a narrow window (see theme.py's column rules): at four columns
+    # the dropdowns collapse to "A…" and Reset breaks onto two lines.
     c1, c2, c3, c4 = st.columns([3, 1.15, 1.15, 0.75])
     kw = c1.text_input(
         "Search", placeholder="Search by keyword (e.g. fruits, expiry, Zepto)…",

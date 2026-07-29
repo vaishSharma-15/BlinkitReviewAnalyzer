@@ -164,18 +164,18 @@ _UI_CSS = f"""<style>
 .ui-muted {{ color:{MUTED}; font-size:13px; }}
 
 /* Hero banner — compact */
-.ui-hero {{ background:{CARD}; border:1px solid {BORDER2}; border-left:5px solid {YELLOW}; border-radius:14px; padding:18px 22px; display:flex; align-items:center; gap:15px; position:relative; box-shadow:0 2px 8px rgba(16,24,40,0.07); }}
+.ui-hero {{ background:{CARD}; border:1px solid {BORDER2}; border-left:5px solid {YELLOW}; border-radius:14px; padding:18px 170px 18px 22px; display:flex; align-items:center; gap:15px; position:relative; box-shadow:0 2px 8px rgba(16,24,40,0.07); }}
 .ui-hero-icon {{ width:42px; height:42px; border-radius:11px; background:{YELLOW}; display:flex; align-items:center; justify-content:center; flex-shrink:0; }}
 .ui-eyebrow {{ color:{YELLOW_DK}; font-size:10px; font-weight:800; letter-spacing:0.13em; text-transform:uppercase; }}
 .ui-hero-title {{ color:{TXT}; font-size:28px; font-weight:800; letter-spacing:-0.02em; margin:3px 0 5px; line-height:1.15; }}
-.ui-hero-sub {{ color:{MUTED}; font-size:13.5px; max-width:min(960px, calc(100% - 160px)); line-height:1.5; }}
+.ui-hero-sub {{ color:{MUTED}; font-size:13.5px; max-width:960px; line-height:1.5; }}
 .ui-hero-pill {{ position:absolute; top:16px; right:20px; background:{YELLOW_SOFT}; color:{YELLOW_DK}; border:1px solid {YELLOW}; border-radius:9999px; padding:5px 13px; font-size:12px; font-weight:800; white-space:nowrap; }}
 
 /* Grids */
-.ui-g2 {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }}
-.ui-g3 {{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }}
-.ui-g4 {{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }}
-.ui-g5 {{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }}
+.ui-g2 {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }}
+.ui-g3 {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; }}
+.ui-g4 {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px; }}
+.ui-g5 {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:14px; }}
 .ui-split {{ display:grid; grid-template-columns:1.5fr 1fr; gap:16px; }}
 .ui-row {{ margin-top:16px; }}
 
@@ -364,4 +364,32 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
    card's 20px padding — 36px above the label against 8px below it, so the label read
    as detached from the text it introduces. The card's padding is enough on its own. */
 .ui-card > .ui-secline:first-child {{ margin-top:0; }}
+/* --- Narrow windows ------------------------------------------------------
+   The grids above reflow on their own (auto-fit + minmax). What does not is
+   anything with a fixed column: the stat tile's label-then-value row, the
+   label columns on the bar charts, and the banner's reserved right-hand
+   corner. Those are handled here rather than by shrinking type. */
+@media (max-width: 1180px) {{
+  /* Value beside a wrapping label ends up on top of it. Stack instead — the
+     same arrangement .ui-stat.big already uses at full width. */
+  .ui-stat {{ flex-direction:column; align-items:flex-start; gap:8px; }}
+  .ui-stat-value {{ margin-left:0; font-size:20px; }}
+  .ui-split {{ grid-template-columns:1fr; }}
+  /* The pill duplicates figures the banner's own copy already carries, and
+     the corner it sits in is the first casualty of a narrow window. */
+  .ui-hero {{ padding-right:22px; }}
+  .ui-hero-pill {{ display:none; }}
+  .ui-hero-title {{ font-size:24px; }}
+}}
+@media (max-width: 900px) {{
+  .ui-lolli {{ grid-template-columns:104px 1fr 44px; gap:9px; }}
+  .ui-bar {{ grid-template-columns:88px 1fr 52px; gap:9px; }}
+  .ui-hb, .ui-hb.wide {{ grid-template-columns:104px 1fr 72px; gap:8px; }}
+  .ui-hb-reflabel {{ margin-left:112px; }}
+  .ui-funnel-row {{ grid-template-columns:104px 1fr 104px; gap:10px; }}
+  .ui-vbars {{ gap:8px; }}
+  .ui-donut-wrap {{ flex-wrap:wrap; gap:16px; }}
+  .ui-chat-q-bubble {{ max-width:88%; }}
+  .ui-chat-a-body {{ max-width:100%; }}
+}}
 </style>"""
