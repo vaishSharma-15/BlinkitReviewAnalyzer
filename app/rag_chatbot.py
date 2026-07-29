@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))  # so `from src....` / `from app....` work under `streamlit run`
@@ -40,6 +41,59 @@ def _logo_data_uri() -> str:
 # site name, and the deployed URL contains "blinkit" — so a plain "Blinkit Analyst" showed
 # up in the tab strip as "Analyst". A glyph in front breaks that match.
 st.set_page_config(page_title="🛒 Blinkit Analyst", page_icon=str(FAVICON_PATH), layout="wide")
+
+
+def _claim_favicon():
+    """Make our icon the only one on the page.
+
+    page_icon sets <link rel="icon">, and locally that is the only icon tag there is. A
+    Community Cloud deployment serves the app inside its own wrapper, which adds
+    rel="mask-icon" and rel="apple-touch-icon" pointing at Streamlit's logo — and Safari
+    prefers those, which is why the deployed tab kept showing a red Streamlit mark beside
+    our title while Chrome showed ours.
+
+    st.markdown strips <script>, so this runs from a zero-height components iframe and
+    reaches into the parent document(s): the app frame, and the wrapper above it when the
+    two are same-origin (they are — one host). Streamlit's own icon href is read first and
+    reused, since its /media/ path is content-hashed and not knowable from here.
+
+    Best-effort by design: every step is guarded, and a browser that blocks the reach-up
+    simply keeps the platform's icon rather than losing the page.
+    """
+    components.html(
+        """
+        <script>
+        (function () {
+          const docs = [];
+          try { if (window.parent && window.parent.document) docs.push(window.parent.document); } catch (e) {}
+          try { if (window.top && window.top.document && !docs.includes(window.top.document)) docs.push(window.top.document); } catch (e) {}
+
+          let href = null;
+          for (const d of docs) {
+            const own = d.querySelector('link[rel="shortcut icon"], link[rel="icon"]');
+            if (own && own.href.indexOf('/media/') !== -1) { href = own.href; break; }
+          }
+          if (!href) return;
+
+          for (const d of docs) {
+            d.querySelectorAll('link[rel="mask-icon"], link[rel="apple-touch-icon"], link[rel~="icon"]')
+             .forEach(function (l) { l.remove(); });
+            ['icon', 'shortcut icon', 'apple-touch-icon'].forEach(function (rel) {
+              const link = d.createElement('link');
+              link.rel = rel;
+              link.type = 'image/png';
+              link.href = href;
+              d.head.appendChild(link);
+            });
+          }
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
+_claim_favicon()
 inject_theme()
 inject_ui()
 
