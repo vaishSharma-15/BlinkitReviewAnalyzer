@@ -236,16 +236,39 @@ def inject_theme():
         pointer-events are off for the row and back on for the button — the row spans the
         full width, and as a solid strip floating over the answers it would have
         swallowed every click and text selection behind it. */
+        /* Parked in the page's right margin, clear of the answer column.
+        Sticky inside the column put it half over the card's right edge — the column ends
+        at the page padding but the answer card stops short of it, so "right-aligned to
+        the column" and "outside the card" are not the same place. Fixed to the viewport
+        is, and it also means the button no longer travels at all.
+        Its row is emptied of layout so the conversation starts where it used to. */
         [data-testid="stHorizontalBlock"]:has(.st-key-cp_clear) {{
-            position: sticky;
-            /* Clears Streamlit's 60px fixed header, which overlays the top of the scroll
-            container — at 6px the button parked underneath it and only a sliver showed. */
-            top: 70px;
-            z-index: 20;
+            height: 0;
+            overflow: visible;
             pointer-events: none;
         }}
-        .st-key-cp_clear {{ margin: 14px 0 10px; pointer-events: auto; }}
+        .st-key-cp_clear {{
+            position: fixed;
+            /* Clears Streamlit's 60px header and its ⋮ menu. */
+            top: 74px;
+            right: 26px;
+            z-index: 20;
+            margin: 0;
+            pointer-events: auto;
+            /* Without this the fixed box keeps the column's width and the button sits
+            left-aligned inside it — 60px further left than `right: 26px` implies, i.e.
+            back over the card. */
+            width: max-content;
+        }}
+        /* max-content still resolves to the column's width here, so the button is pushed
+        to the right edge of that box explicitly. */
         .st-key-cp_clear .stButton {{ display: flex; justify-content: flex-end; }}
+        /* Narrow windows leave no margin to sit in, so the label goes and the icon
+        stays — 40px fits a gutter that 125px cannot. */
+        @media (max-width: 1360px) {{
+            .st-key-cp_clear button [data-testid="stMarkdownContainer"] {{ display: none; }}
+            .st-key-cp_clear button {{ padding: 8px 10px !important; }}
+        }}
         .st-key-cp_clear button {{
             background-color: {CARD_BG} !important;
             border: 1px solid {CARD_BORDER_HOVER} !important;
