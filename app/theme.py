@@ -86,6 +86,14 @@ def inject_theme():
         /* Nav rows need breathing room now that the sidebar carries colour. */
         [data-testid="stSidebar"] .stButton {{ margin-bottom: 4px; }}
 
+        /* Streamlit reserves a 78px band above the sidebar content for one collapse
+        arrow, which read as a hole above the logo. Trimmed to what the arrow needs. */
+        [data-testid="stSidebarHeader"] {{
+            padding: 8px 14px 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+        }}
+
         /* Push the account chip to the foot of the sidebar: make the sidebar's content
         column full-height, then let the chip's wrapper absorb the slack above it. */
         /* Tall enough to push the account chip to the foot, short enough that the
@@ -179,6 +187,18 @@ def inject_theme():
             scrollbar-width: thin; scrollbar-color: {SIDEBAR_BORDER} transparent;
         }}
 
+        /* The reviews, folded shut until asked for. */
+        [data-testid="stSidebar"] .lf-fold {{ margin-bottom: 4px; }}
+        [data-testid="stSidebar"] .lf-fold summary {{
+            cursor: pointer; list-style: none; display: inline-block;
+            font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+            text-transform: uppercase; color: #6f6440 !important; padding: 4px 0 8px;
+        }}
+        [data-testid="stSidebar"] .lf-fold summary::-webkit-details-marker {{ display: none; }}
+        [data-testid="stSidebar"] .lf-fold summary::after {{ content: " ▾"; }}
+        [data-testid="stSidebar"] .lf-fold[open] summary::after {{ content: " ▴"; }}
+        [data-testid="stSidebar"] .lf-fold summary:hover {{ color: {ON_PRIMARY} !important; }}
+
         /* "Open review ↗" — a whole clickable card is invisible without it. */
         [data-testid="stSidebar"] .lf-card-link {{
             font-size: 10px; font-weight: 700; letter-spacing: 0.03em;
@@ -205,9 +225,27 @@ def inject_theme():
         tooltip is wrapped in Streamlit's stTooltipHoverTarget, so it is no longer the
         direct child .stButton expects. !important because the solid-yellow .stButton
         rule below ties on specificity and wins on source order. */
-        /* Sits in the gap between the hero and the first question bubble, so it needs
-        clear air on both sides — flush under the hero it read as part of the banner. */
-        .st-key-cp_clear {{ margin: 14px 0 10px; }}
+        /* Sticky, because a long conversation scrolls it off the top and clearing the
+        chat is exactly what you want when there is a lot of it.
+
+        The rule is on the columns *row*, not on the button: a sticky element can only
+        travel within its own parent, and the button's column is no taller than the
+        button, so sticking it there moved it nowhere. The row is a direct child of the
+        tall block inside the scroll container, so it can ride the full length.
+
+        pointer-events are off for the row and back on for the button — the row spans the
+        full width, and as a solid strip floating over the answers it would have
+        swallowed every click and text selection behind it. */
+        [data-testid="stHorizontalBlock"]:has(.st-key-cp_clear) {{
+            position: sticky;
+            /* Clears Streamlit's 60px fixed header, which overlays the top of the scroll
+            container — at 6px the button parked underneath it and only a sliver showed. */
+            top: 70px;
+            z-index: 20;
+            pointer-events: none;
+        }}
+        .st-key-cp_clear {{ margin: 14px 0 10px; pointer-events: auto; }}
+        .st-key-cp_clear .stButton {{ display: flex; justify-content: flex-end; }}
         .st-key-cp_clear button {{
             background-color: {CARD_BG} !important;
             border: 1px solid {CARD_BORDER_HOVER} !important;

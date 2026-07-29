@@ -335,8 +335,10 @@ def render():
     if st.session_state.copilot_messages and not pending:
         with st.columns([4, 1])[1]:
             with st.container(key="cp_clear"):
-                if st.button("Clear chat", icon=":material/refresh:", use_container_width=True,
-                             key="clear_chat", help="Start a fresh conversation."):
+                # Sized to its label, not to the column: pinned over the conversation it
+                # is an overlay, and a full-width one would cover the right-hand end of
+                # every line it floats past.
+                if st.button("Clear chat", icon=":material/refresh:", key="clear_chat"):
                     st.session_state.pop("copilot_messages", None)
                     st.session_state.pop("copilot_pending", None)
                     st.rerun()

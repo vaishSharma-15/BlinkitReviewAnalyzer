@@ -81,10 +81,11 @@ with st.sidebar:
     # the button already repainted and any previous result cleared, so the panel below is
     # only ever showing the run that is actually in flight.
     with st.container(key="sb_fetch"):
+        # No `help`: Streamlit's tooltip is positioned for the main area and gets clipped
+        # against the sidebar's edge, so it arrived as a half-visible box over the nav.
+        # The button says what it does.
         if st.button("Fetch new reviews", icon=":material/cloud_download:",
-                     use_container_width=True, key="fetch_reviews",
-                     help="Pull Blinkit's newest Play Store and App Store reviews live, "
-                          "one per star rating."):
+                     use_container_width=True, key="fetch_reviews"):
             st.session_state.live_fetch_run = True
             st.session_state.pop("live_fetch", None)
             st.rerun()

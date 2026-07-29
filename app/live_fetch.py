@@ -283,8 +283,11 @@ def _result_html(state) -> str:
             f'<span class="lf-chip-sub">{ui.esc(state["at"])}</span></div>')
     if not n:
         return chip
-    note = '<div class="lf-note">One review per rating · just a preview, nothing saved</div>'
-    return chip + note + _cards_html(state["new"])
+    # Folded shut. The reviews are the answer to "what are people saying right now", which
+    # is a question you ask on purpose — not something to leave sitting open under the nav
+    # taking a third of the sidebar.
+    return (f'{chip}<details class="lf-fold"><summary>Read them</summary>'
+            f'{_cards_html(state["new"])}</details>')
 
 
 def render_panel():
