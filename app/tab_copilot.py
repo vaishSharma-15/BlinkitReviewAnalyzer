@@ -327,23 +327,27 @@ def render():
     scraped = scraped_count(grounded)
 
     # Heading and Clear chat share one block so the button can sit in the banner's
-    # top-right corner rather than float over the conversation below it. The corpus pill
-    # normally occupies that corner, so it stands down once there is a chat to clear —
-    # the counts it carries are in the banner's own copy anyway.
+    # top-right corner rather than float over the conversation below it. The banner is the
+    # compact variant here: it is a label on a page whose real content is the chat, and a
+    # full-height one pushed the first answer down the screen.
+    #
+    # The button is always drawn, disabled until there is something to clear. Appearing
+    # only mid-conversation made it a control that moved in and shifted the layout under
+    # the reader; present-but-dim says the same thing and stays put.
     with st.container(key="cp_head"):
         ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
                          f"Trained on thousands of Blinkit app-store reviews, YouTube comments and "
                          f"q-commerce community discussions — every answer grounded in what real users said. "
                          f"{ui.fmt_full(scraped)} reviews scraped, {ui.fmt_full(grounded)} indexed for retrieval.",
-                         pill=None if in_conversation
-                         else f"{ui.fmt_full(scraped)} scraped · {ui.fmt_full(grounded)} indexed"))
+                         compact=True))
 
-        if in_conversation:
-            with st.container(key="cp_clear"):
-                if st.button("Clear chat", icon=":material/refresh:", key="clear_chat"):
-                    st.session_state.pop("copilot_messages", None)
-                    st.session_state.pop("copilot_pending", None)
-                    st.rerun()
+        with st.container(key="cp_clear"):
+            if st.button("Clear chat", icon=":material/refresh:", key="clear_chat",
+                         disabled=not in_conversation,
+                         help=None if in_conversation else "Nothing to clear yet."):
+                st.session_state.pop("copilot_messages", None)
+                st.session_state.pop("copilot_pending", None)
+                st.rerun()
 
     # The suggestion grid is hidden while a first answer is in flight, so the typing
     # bubble isn't stranded below a wall of buttons.

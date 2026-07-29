@@ -136,11 +136,15 @@ def sentiment_label(score: float) -> str:
     return "Positive" if score > 0.2 else ("Negative" if score < -0.2 else "Neutral")
 
 
-def hero(icon_name: str, eyebrow: str, title: str, sub: str, pill: str = None) -> str:
+def hero(icon_name: str, eyebrow: str, title: str, sub: str, pill: str = None,
+         compact: bool = False) -> str:
+    """The page banner. `compact` shrinks it to a header strip — used where the banner
+    shares the page with something that matters more than it does (the chat), so the
+    conversation starts higher up the screen."""
     pill_html = f'<div class="ui-hero-pill">{esc(pill)}</div>' if pill else ""
     return f"""
-    <div class="ui-hero">
-      <div class="ui-hero-icon">{icon(icon_name, size=24, color="#191c1e")}</div>
+    <div class="ui-hero{' compact' if compact else ''}">
+      <div class="ui-hero-icon">{icon(icon_name, size=20 if compact else 24, color="#191c1e")}</div>
       <div class="ui-hero-text">
         <div class="ui-eyebrow">{esc(eyebrow)}</div>
         <div class="ui-hero-title">{esc(title)}</div>
@@ -170,6 +174,13 @@ _UI_CSS = f"""<style>
 .ui-hero-title {{ color:{TXT}; font-size:28px; font-weight:800; letter-spacing:-0.02em; margin:3px 0 5px; line-height:1.15; }}
 .ui-hero-sub {{ color:{MUTED}; font-size:13.5px; max-width:960px; line-height:1.5; }}
 .ui-hero-pill {{ position:absolute; top:16px; right:20px; background:{YELLOW_SOFT}; color:{YELLOW_DK}; border:1px solid {YELLOW}; border-radius:9999px; padding:5px 13px; font-size:12px; font-weight:800; white-space:nowrap; }}
+/* Compact banner: same components, header-strip proportions. The sub line keeps its
+   full text but stops well short of the right edge, so it never runs under the control
+   parked in that corner. */
+.ui-hero.compact {{ padding:12px 18px; gap:12px; border-radius:12px; }}
+.ui-hero.compact .ui-hero-icon {{ width:34px; height:34px; border-radius:9px; }}
+.ui-hero.compact .ui-hero-title {{ font-size:19px; margin:2px 0 3px; }}
+.ui-hero.compact .ui-hero-sub {{ font-size:12px; line-height:1.45; max-width:calc(100% - 150px); }}
 
 /* Grids */
 .ui-g2 {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }}

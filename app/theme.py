@@ -256,6 +256,17 @@ def inject_theme():
             z-index: 5;
         }}
         .st-key-cp_clear .stButton {{ display: flex; justify-content: flex-end; }}
+        /* Disabled until there is a conversation: dimmed, not hidden, so the corner does
+        not change shape the moment someone asks their first question. */
+        .st-key-cp_clear button:disabled,
+        .st-key-cp_clear button:disabled:hover {{
+            opacity: 0.42;
+            cursor: not-allowed;
+            background-color: transparent !important;
+            border-color: {CARD_BORDER} !important;
+            color: {TEXT_MUTED} !important;
+            box-shadow: none;
+        }}
         .st-key-cp_clear button {{
             background-color: {CARD_BG} !important;
             border: 1px solid {CARD_BORDER_HOVER} !important;
