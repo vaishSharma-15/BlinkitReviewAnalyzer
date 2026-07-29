@@ -99,7 +99,7 @@ def _fetch_play(cfg, known, on_step, on_batch) -> int:
 
     from src.ingest.common import is_probably_spam
 
-    on_step(f"Google Play · {cfg['app_id']}")
+    on_step("Reading Google Play reviews")
     seen = 0
     for score in SCORES:
         result, _ = reviews(
@@ -123,7 +123,7 @@ def _fetch_play(cfg, known, on_step, on_batch) -> int:
             })
         batch = _pick(candidates, PER_BUCKET)
         known.update(c["id"] for c in batch)
-        on_step(f"Play ★{score} — {len(batch)} new of {len(result)} scanned")
+        on_step(f"Play Store {score}★ — {len(batch)} new")
         if batch:
             on_batch(batch)
     return seen
@@ -138,7 +138,7 @@ def _fetch_appstore(cfg, known, on_step, on_batch) -> int:
     from src.ingest.common import is_probably_spam
 
     country, app_id = cfg["country"], cfg["app_id"]
-    on_step(f"App Store · id{app_id} · {country.upper()}")
+    on_step("Reading App Store reviews")
     url = (f"https://itunes.apple.com/{country}/rss/customerreviews/"
            f"id={app_id}/sortBy=mostRecent/page=1/json")
     with httpx.Client(timeout=15.0) as client:
@@ -172,7 +172,7 @@ def _fetch_appstore(cfg, known, on_step, on_batch) -> int:
             if row["id"] not in known and len(batch) < APPSTORE_TAKE:
                 known.add(row["id"])
                 batch.append(row)
-    on_step(f"App Store — {len(batch)} new of {len(entries)} scanned")
+    on_step(f"App Store — {len(batch)} new")
     if batch:
         on_batch(batch)
     return len(entries)
@@ -190,7 +190,7 @@ def _fetch(on_step, on_batch) -> dict:
     """
     cfg = _stores_config()
     known = _existing_ids()
-    on_step(f"Loaded {ui.fmt_full(len(known))} known review ids")
+    on_step(f"You already have {ui.fmt_full(len(known))} reviews")
 
     found, seen = [], 0
 
@@ -203,7 +203,7 @@ def _fetch(on_step, on_batch) -> dict:
         try:
             seen += fn(store_cfg, known, on_step, collect)
         except Exception as exc:
-            on_step(f"{name} unavailable — {type(exc).__name__}")
+            on_step(f"{name} did not respond")
 
     # Newest first across both stores, so the panel reads as one feed rather than two
     # concatenated blocks.
@@ -246,21 +246,27 @@ def _cards_html(rows) -> str:
 
 
 def _result_html(state) -> str:
-    """The settled panel: the run's step trace, the 'done' chip that reports it, then the
-    reviews. The trace is kept rather than cleared — a page of newest-first reviews comes
-    back in about a second, so a log that only existed during the run would be a flash;
-    left on screen it is the record of what the scrape did."""
-    log = _steps_html(state.get("steps", []), running=False)
+    """The settled panel: the done chip, the reviews, and the step trace folded away
+    underneath.
+
+    The trace is kept rather than dropped — the whole fetch takes under two seconds, so a
+    log that only existed during the run would be a flash — but it is the record of a
+    finished job, not the point of the panel, so it collapses into a one-line disclosure
+    and the reviews get the space.
+    """
+    log = (f'<details class="lf-details"><summary>What it did</summary>'
+           f'{_steps_html(state.get("steps", []), running=False)}'
+           f'<div class="lf-scanned">{state["scanned"]} reviews checked</div></details>')
     if state.get("error"):
-        return log + f'<div class="lf-chip err">Failed · {ui.esc(state["error"])}</div>'
+        return f'<div class="lf-chip err">Couldn\'t fetch · {ui.esc(state["error"])}</div>' + log
     n = len(state["new"])
     label = f"{n} new review{'' if n == 1 else 's'}" if n else "no new reviews"
-    chip = (f'<div class="lf-chip">Done · {label} · {ui.esc(state["at"])}'
-            f'<span class="lf-chip-sub">{state["scanned"]} scanned</span></div>')
+    chip = (f'<div class="lf-chip">Done · {label}'
+            f'<span class="lf-chip-sub">{ui.esc(state["at"])}</span></div>')
     if not n:
-        return log + chip
-    note = '<div class="lf-note">Live · one per rating · not yet indexed</div>'
-    return log + chip + note + _cards_html(state["new"])
+        return chip + log
+    note = '<div class="lf-note">One per star rating · not saved to the corpus</div>'
+    return chip + note + _cards_html(state["new"]) + log
 
 
 def render_panel():

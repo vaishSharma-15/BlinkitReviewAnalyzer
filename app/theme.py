@@ -98,7 +98,12 @@ def inject_theme():
         inside the sidebar. Nothing is clipped here: an earlier overflow:hidden cut the
         bottom off the account chip, and the scrollbar it was hiding came from the 96px
         of bottom padding trimmed just above, not from real overflow. */
-        [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {{
+        /* Path is spelled out from stSidebarUserContent so this hits *only* the sidebar's
+        outermost block. `[data-testid="stSidebar"] ...` also matched every st.container
+        with a key — the fetch panel's container inherited a 772px floor, which stretched
+        the sidebar past the viewport and pushed the account chip out of sight. That looked
+        like the review list scrolling the sidebar; it was this. */
+        [data-testid="stSidebarUserContent"] > div > [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {{
             min-height: calc(100vh - 8rem);
         }}
         /* :has() is needed because the chip is wrapped in Streamlit's own
@@ -162,9 +167,29 @@ def inject_theme():
             font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
             color: #6f6440 !important; margin-bottom: 7px;
         }}
-        /* Capped and scrollable so a fetch can never push the account chip off the
-        bottom of the sidebar. */
-        [data-testid="stSidebar"] .lf-feed {{ max-height: 240px; overflow-y: auto; padding-right: 2px; }}
+        /* The review list is the only thing here that scrolls. It has to be capped
+        somewhere: uncapped, eight cards push the account chip past the bottom of the
+        sidebar, and then the *sidebar* scrolls to reach it — which is how the chip
+        disappeared. Keeping the overflow inside this box means the panel occupies fixed
+        vertical space no matter how many reviews come back. */
+        [data-testid="stSidebar"] .lf-feed {{
+            max-height: 230px; overflow-y: auto; padding-right: 3px;
+            /* Hairline scrollbar — the default macOS overlay bar sits on top of the
+            cards' right edge and reads as a stray border. */
+            scrollbar-width: thin; scrollbar-color: {SIDEBAR_BORDER} transparent;
+        }}
+
+        /* The step trace, folded away once the run is over. */
+        [data-testid="stSidebar"] .lf-details {{ margin-top: 4px; }}
+        [data-testid="stSidebar"] .lf-details summary {{
+            cursor: pointer; list-style: none;
+            font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em;
+            text-transform: uppercase; color: #6f6440 !important; padding: 3px 0;
+        }}
+        [data-testid="stSidebar"] .lf-details summary::-webkit-details-marker {{ display: none; }}
+        [data-testid="stSidebar"] .lf-details summary::before {{ content: "› "; }}
+        [data-testid="stSidebar"] .lf-details[open] summary::before {{ content: "⌄ "; }}
+        [data-testid="stSidebar"] .lf-scanned {{ font-size: 10.5px; color: #6f6440 !important; }}
         [data-testid="stSidebar"] .lf-card {{
             display: block; text-decoration: none !important;
             background: rgba(255,255,255,0.72);
@@ -183,17 +208,23 @@ def inject_theme():
         tooltip is wrapped in Streamlit's stTooltipHoverTarget, so it is no longer the
         direct child .stButton expects. !important because the solid-yellow .stButton
         rule below ties on specificity and wins on source order. */
+        /* Sits in the gap between the hero and the first question bubble, so it needs
+        clear air on both sides — flush under the hero it read as part of the banner. */
+        .st-key-cp_clear {{ margin: 14px 0 10px; }}
         .st-key-cp_clear button {{
-            background-color: transparent !important;
+            background-color: {CARD_BG} !important;
             border: 1px solid {CARD_BORDER_HOVER} !important;
+            border-radius: 9px !important;
             color: {TEXT_MUTED} !important;
             font-size: 12px;
-            font-weight: 500;
+            font-weight: 600;
+            padding: 7px 14px !important;
+            box-shadow: 0 1px 2px rgba(16,24,40,0.04);
         }}
         .st-key-cp_clear button:hover {{
-            background-color: {CARD_BG} !important;
             border-color: {ON_PRIMARY} !important;
             color: {TEXT_MAIN} !important;
+            box-shadow: 0 2px 6px rgba(16,24,40,0.09);
         }}
         /* Yellow rule above the account chip — the st.divider() that used to sit here
         went away when the chip was pinned to the foot. */
