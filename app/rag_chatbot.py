@@ -14,7 +14,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))  # so `from src....` / `from app....` work under `streamlit run`
 
-from app import tab_analytics, tab_copilot, tab_overview, tab_themes, ui  # noqa: E402
+from app import live_fetch, tab_analytics, tab_copilot, tab_overview, tab_themes, ui  # noqa: E402
 from app.theme import inject_theme  # noqa: E402
 from app.ui import inject_ui  # noqa: E402
 
@@ -75,17 +75,19 @@ with st.sidebar:
             st.session_state.active_page = page_name
             st.rerun()
 
-    # Only offered on the Insight Engine, and only once there is a conversation to clear —
-    # elsewhere it is a button that does nothing visible. Its own container so the CSS can
-    # set it apart from the nav rows above, which are otherwise the identical transparent
-    # secondary button.
-    if st.session_state.active_page == "Insight Engine" and st.session_state.get("copilot_messages"):
-        with st.container(key="sb_chat"):
-            if st.button("Clear chat", icon=":material/refresh:", use_container_width=True,
-                         key="clear_chat", help="Start a fresh conversation."):
-                st.session_state.pop("copilot_messages", None)
-                st.session_state.pop("copilot_pending", None)
-                st.rerun()
+    # Live scrape. Its own container so the CSS can set it apart from the nav rows above,
+    # which are otherwise the identical transparent secondary button. Clicking only parks
+    # a flag and reruns: the fetch then runs inside render_panel() on the next pass, with
+    # the button already repainted and any previous result cleared, so the panel below is
+    # only ever showing the run that is actually in flight.
+    with st.container(key="sb_fetch"):
+        if st.button("Fetch new reviews", icon=":material/cloud_download:",
+                     use_container_width=True, key="fetch_reviews",
+                     help="Pull the newest Blinkit Play Store reviews live."):
+            st.session_state.live_fetch_run = True
+            st.session_state.pop("live_fetch", None)
+            st.rerun()
+        live_fetch.render_panel()
 
     # Demo account chip, pinned to the foot of the sidebar by .sb-user-foot's
     # margin-top:auto. Not authentication — the app has no login; this stands in

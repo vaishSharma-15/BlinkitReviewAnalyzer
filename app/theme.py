@@ -107,21 +107,93 @@ def inject_theme():
         [data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.sb-user-foot) {{
             margin-top: auto;
         }}
-        /* The Clear chat control is a utility, not a fifth nav destination: it sits
-        below the nav block with a rule above it, in a smaller, quieter type than the
-        nav rows it would otherwise be indistinguishable from. */
-        [data-testid="stSidebar"] .st-key-sb_chat {{
+        /* The live-scrape control is an action, not a fifth nav destination: it sits
+        below the nav block with a rule above it, and unlike the transparent ghost nav
+        rows it is filled, so it reads as something that *does* rather than navigates. */
+        [data-testid="stSidebar"] .st-key-sb_fetch {{
             margin-top: 14px;
             padding-top: 12px;
             border-top: 1px solid {SIDEBAR_BORDER};
         }}
-        [data-testid="stSidebar"] .st-key-sb_chat [data-testid="stBaseButton-secondary"] {{
+        [data-testid="stSidebar"] .st-key-sb_fetch [data-testid="stBaseButton-secondary"] {{
+            background-color: rgba(255,255,255,0.72);
+            border: 1px solid {SIDEBAR_BORDER};
+            font-size: 12.5px;
+            font-weight: 700;
+            justify-content: center;
+            text-align: center;
+        }}
+        [data-testid="stSidebar"] .st-key-sb_fetch [data-testid="stBaseButton-secondary"]:hover {{
+            background-color: {CARD_BG};
+            border-color: {ON_PRIMARY};
+        }}
+
+        /* Live-fetch panel. Every rule that sets a colour is both scoped to the sidebar
+        and marked !important: the blanket `[data-testid="stSidebar"] *` rule below
+        repaints all sidebar text one colour with !important, and an unscoped .lf-class
+        ties it on specificity and loses on source order — which is what painted the
+        first draft of the done chip black-on-black. */
+        [data-testid="stSidebar"] .lf-log {{ margin: 10px 0 2px; }}
+        [data-testid="stSidebar"] .lf-step {{
+            display: flex; align-items: flex-start; gap: 7px;
+            font-size: 11px; line-height: 1.45; margin-bottom: 5px;
+            color: {TEXT_MAIN} !important;
+        }}
+        [data-testid="stSidebar"] .lf-step i {{
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
+            background: {ON_PRIMARY};
+            animation: lf-pulse 1s ease-in-out infinite;
+        }}
+        /* Finished steps stop pulsing and recede — the one still animating is the one
+        the scrape is actually on. */
+        [data-testid="stSidebar"] .lf-step.done {{ color: #6f6440 !important; }}
+        [data-testid="stSidebar"] .lf-step.done i {{ background: #b9a94e; animation: none; }}
+        @keyframes lf-pulse {{ 0%, 100% {{ opacity: 0.25; }} 50% {{ opacity: 1; }} }}
+        @media (prefers-reduced-motion: reduce) {{ [data-testid="stSidebar"] .lf-step i {{ animation: none; }} }}
+
+        [data-testid="stSidebar"] .lf-chip {{
+            display: block; margin: 10px 0 8px; padding: 7px 10px; border-radius: 8px;
+            background: {ON_PRIMARY}; color: {PRIMARY_YELLOW} !important;
+            font-size: 11.5px; font-weight: 700;
+        }}
+        [data-testid="stSidebar"] .lf-chip.err {{ background: #fee2e2; color: #991b1b !important; }}
+        [data-testid="stSidebar"] .lf-chip-sub {{ float: right; font-weight: 500; opacity: 0.7; color: inherit !important; }}
+        [data-testid="stSidebar"] .lf-note {{
+            font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+            color: #6f6440 !important; margin-bottom: 7px;
+        }}
+        /* Capped and scrollable so a fetch can never push the account chip off the
+        bottom of the sidebar. */
+        [data-testid="stSidebar"] .lf-feed {{ max-height: 240px; overflow-y: auto; padding-right: 2px; }}
+        [data-testid="stSidebar"] .lf-card {{
+            display: block; text-decoration: none !important;
+            background: rgba(255,255,255,0.72);
+            border: 1px solid {SIDEBAR_BORDER}; border-radius: 9px;
+            padding: 8px 10px; margin-bottom: 7px;
+        }}
+        [data-testid="stSidebar"] .lf-card:hover {{ background: {CARD_BG}; border-color: {ON_PRIMARY}; }}
+        [data-testid="stSidebar"] .lf-card-head {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }}
+        [data-testid="stSidebar"] .lf-stars {{ color: #b8860b !important; font-size: 11px; letter-spacing: 1px; }}
+        [data-testid="stSidebar"] .lf-date {{ color: #6f6440 !important; font-size: 10px; }}
+        [data-testid="stSidebar"] .lf-card-text {{ color: {TEXT_MAIN} !important; font-size: 11.5px; line-height: 1.45; }}
+
+        /* Clear chat, now on the Insight Engine page itself: a quiet outline button, so
+        it never competes with the yellow primary buttons around the chat.
+        Selector is `button`, not `.stButton > button`: a button carrying a `help`
+        tooltip is wrapped in Streamlit's stTooltipHoverTarget, so it is no longer the
+        direct child .stButton expects. !important because the solid-yellow .stButton
+        rule below ties on specificity and wins on source order. */
+        .st-key-cp_clear button {{
+            background-color: transparent !important;
+            border: 1px solid {CARD_BORDER_HOVER} !important;
+            color: {TEXT_MUTED} !important;
             font-size: 12px;
             font-weight: 500;
-            opacity: 0.72;
         }}
-        [data-testid="stSidebar"] .st-key-sb_chat [data-testid="stBaseButton-secondary"]:hover {{
-            opacity: 1;
+        .st-key-cp_clear button:hover {{
+            background-color: {CARD_BG} !important;
+            border-color: {ON_PRIMARY} !important;
+            color: {TEXT_MAIN} !important;
         }}
         /* Yellow rule above the account chip — the st.divider() that used to sit here
         went away when the chip was pinned to the foot. */

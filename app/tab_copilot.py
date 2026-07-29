@@ -330,6 +330,17 @@ def render():
 
     pending = st.session_state.get("copilot_pending")
 
+    # Clearing the conversation belongs beside the conversation, not in the sidebar: it
+    # acts on what is on this page, and only exists once there is something to clear.
+    if st.session_state.copilot_messages and not pending:
+        with st.columns([4, 1])[1]:
+            with st.container(key="cp_clear"):
+                if st.button("Clear chat", icon=":material/refresh:", use_container_width=True,
+                             key="clear_chat", help="Start a fresh conversation."):
+                    st.session_state.pop("copilot_messages", None)
+                    st.session_state.pop("copilot_pending", None)
+                    st.rerun()
+
     # The suggestion grid is hidden while a first answer is in flight, so the typing
     # bubble isn't stranded below a wall of buttons.
     if not st.session_state.copilot_messages and not pending:

@@ -261,6 +261,20 @@ streamlit run app/rag_chatbot.py
 - If an Anthropic API key is present in the environment, the app can generate answers grounded in retrieved context.
 - Without an API key, it falls back to a simple retrieval-based response.
 
+### Fetching new reviews live
+
+The sidebar's **Fetch new reviews** button (`app/live_fetch.py`) pulls the newest Blinkit
+Play Store reviews on demand, using the same app id and locale from `config.yaml` that
+`src.ingest.play_store` uses. It streams the scrape as it runs — one step per page — and
+then pastes the reviews it found into the sidebar under a *Done · N new reviews* chip,
+where "new" means an id not already in `data/raw/play.jsonl`.
+
+It is read-only: nothing is written to `data/raw/`. The corpus counts, the funnel
+manifests and the vector index all come from one pipeline run and have to agree with each
+other, so a review injected behind their backs would be counted as scraped while being
+absent from every downstream stage. That is why the fetched reviews are labelled *not yet
+indexed* — to actually add them, re-run the pipeline from Phase 01.
+
 ### Answer reliability on a deployed instance
 
 Answers degrade in tiers rather than failing. Best case, Gemini writes the answer. If the
