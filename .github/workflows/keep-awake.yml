@@ -1,0 +1,54 @@
+name: Keep Streamlit app awake
+
+# Streamlit Community Cloud hibernates an app after ~7 days with no visitors, and a
+# sleeping app greets whoever opens the link with a "get this app back up" page instead of
+# the dashboard. This opens the app in a real browser every 3 days so it never gets there,
+# and wakes it if it already has.
+#
+# A browser, not curl: Streamlit's inactivity timer tracks app sessions (a websocket
+# connection), and curl only fetches the static HTML shell — it can return 200 while the
+# sleep clock keeps running. See .github/scripts/keep_awake.py.
+#
+# Needs the app's URL once:
+#   gh variable set APP_URL --body 'https://<your-app>.streamlit.app'
+
+on:
+  schedule:
+    - cron: "0 6 */3 * *" # 06:00 UTC, every 3rd day — comfortably inside the ~7-day window
+  workflow_dispatch: # run it by hand before showing the app to someone
+    inputs:
+      url:
+        description: "App URL to open (defaults to the APP_URL repo variable)"
+        required: false
+
+jobs:
+  visit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install chromium --with-deps
+
+      - name: Open the app
+        env:
+          APP_URL: ${{ inputs.url || vars.APP_URL }}
+        run: python .github/scripts/keep_awake.py
+
+      # Proof of what the visit actually saw, kept for a week. The run log says "App is
+      # up"; this says what "up" looked like.
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-screenshot
+          path: app.png
+          retention-days: 7
+          if-no-files-found: ignore
