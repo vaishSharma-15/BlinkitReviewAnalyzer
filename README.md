@@ -282,6 +282,39 @@ per rating bucket (`filter_score_with` on Play; Apple's feed has no such filter,
 page is bucketed client-side) costs about a second in total and returns something readable
 at both ends of the scale.
 
+A run does six requests and examines ~200 reviews:
+
+```
+You already have 32,725 reviews      ← data/raw/{play,appstore}.jsonl, the dedup baseline
+Reading Google Play reviews
+Play Store 1★ — 1 new                ← one request per rating bucket
+Play Store 2★ — 1 new
+…
+Reading App Store reviews
+App Store — 3 new                    ← lowest-rated, highest-rated, then newest
+```
+
+Those steps stream into the sidebar while the fetch runs and are gone once it finishes —
+the panel then shows only the Done chip and the reviews, since a finished job's trace is
+not something to audit from a sidebar. This section is the record instead, and so is the
+CLI, which prints the whole trace plus a link per review:
+
+```bash
+python -m app.live_fetch
+```
+
+`.github/workflows/preview-reviews.yml` runs exactly that — by hand from the Actions tab,
+or every Monday — so the detail is in the run log whenever you want it. It reads
+`data/raw/` to know what is already collected and writes nothing: no ingest, no index, no
+commit.
+
+Each card links back to its review. Play links carry the `reviewId` and the locale, and
+the page served for that URL contains the review's own text. Apple's feed exposes no
+per-review permalink — its entry link is an iTunes-scheme URL, and the only
+review-specific one is the reviewer's profile, which is PII this repo does not persist —
+so App Store cards open the app's reviews list (`?see-all=reviews`) and are labelled
+*Open in App Store* rather than *Open review*.
+
 It is read-only: nothing is written to `data/raw/`. The corpus counts, the funnel
 manifests and the vector index all come from one pipeline run and have to agree with each
 other, so a review injected behind their backs would be counted as scraped while being

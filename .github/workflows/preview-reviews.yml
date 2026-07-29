@@ -1,0 +1,32 @@
+name: Preview newest reviews
+
+# The same fetch the app's sidebar button runs, printed to the Actions log instead of
+# rendered. The sidebar shows only the reviews; the step-by-step detail — which rating
+# buckets were read, how many were new, the link to each one — lives here and in the
+# README's "Fetching new reviews live" section.
+#
+# Read-only: it reads data/raw/*.jsonl to know what is already collected and writes
+# nothing. It does not ingest, does not touch the index, and does not commit.
+
+on:
+  workflow_dispatch: # run it by hand from the Actions tab
+  schedule:
+    - cron: "0 6 * * 1" # 06:00 UTC every Monday
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Only what this one module imports. Installing the full requirements.txt would
+      # pull LanceDB and the embedding stack for a job that never touches the index.
+      - name: Install fetch dependencies
+        run: pip install google-play-scraper==1.2.7 httpx PyYAML pydantic streamlit
+
+      - name: Fetch newest reviews
+        run: python -m app.live_fetch

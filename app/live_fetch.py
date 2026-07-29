@@ -5,7 +5,9 @@ the one place the dashboard talks to a source itself: it hits the same two endpo
 src/ingest/play_store.py and src/ingest/app_store.py use — Google Play for the Android
 app, Apple's public customer-reviews feed for iOS — with the same app ids and storefront
 from config.yaml, and streams what comes back into the sidebar request-by-request rather
-than after the fact, so the panel shows the scrape running, not just its result. Those
+than after the fact, so the panel shows the scrape running, not just its result — and
+once it settles, only the reviews remain: how the sampling works is in the README, not
+repeated at the reader on every run. Those
 two are the live sources because they are the only ones that answer instantly without a
 key; YouTube needs an API key and quota, and the forum/Reddit sources are blocked or
 rate-limited (see the raw manifests' blocked_reason), which is fine for a nightly CLI run
@@ -17,6 +19,12 @@ characters — so a pure 'newest' pull is a wall of "good", "best", "nice app", 
 nothing about what users are reporting. Walking the rating buckets (Play exposes
 filter_score_with; Apple's feed does not, so its page is bucketed client-side) costs one
 request each and returns something worth reading at both ends of the scale.
+
+Every card links back to the review it came from. Play links carry the reviewId and the
+locale, and the page they serve contains that review's own text. Apple's feed has no
+per-review permalink — its entry link is an iTunes-scheme URL and the only review-specific
+one is the reviewer's profile, which is PII this repo does not persist — so those cards
+open the app's reviews list and say so.
 
 Read-only on purpose. Nothing here appends to data/raw/: the corpus counts on Overview,
 the funnel manifests and the vector index are all produced by one pipeline run and have
@@ -118,8 +126,12 @@ def _fetch_play(cfg, known, on_step, on_batch) -> int:
                 "id": rid, "source": "play", "text": text,
                 "rating": entry.get("score"),
                 "date": at.replace(tzinfo=timezone.utc).isoformat() if at else "",
-                "url": f"https://play.google.com/store/apps/details?"
-                       f"id={cfg['app_id']}&reviewId={entry['reviewId']}",
+                # &hl/&gl pin the listing to the locale the review was fetched from;
+                # without them Play renders in the visitor's locale and the linked review
+                # is not the one on the card. Verified: the page served for this URL
+                # contains the review's own text.
+                "url": f"https://play.google.com/store/apps/details?id={cfg['app_id']}"
+                       f"&reviewId={entry['reviewId']}&hl={cfg['lang']}&gl={cfg['country']}",
             })
         batch = _pick(candidates, PER_BUCKET)
         known.update(c["id"] for c in batch)
@@ -157,7 +169,11 @@ def _fetch_appstore(cfg, known, on_step, on_batch) -> int:
             "id": rid, "source": "appstore", "text": text,
             "rating": int(entry["im:rating"]["label"]),
             "date": published.isoformat(),
-            "url": f"https://apps.apple.com/{country}/app/blinkit/id{app_id}",
+            # Apple's feed carries no per-review permalink (its entry link is an
+            # iTunes-scheme URL, and the only review-specific one is the reviewer's
+            # profile, which is PII this repo does not persist). ?see-all=reviews at
+            # least opens the reviews list rather than the app's marketing page.
+            "url": f"https://apps.apple.com/{country}/app/id{app_id}?see-all=reviews",
         })
 
     batch = []
@@ -236,37 +252,39 @@ def _cards_html(rows) -> str:
         # Same source names the rest of the app uses, so a card here and an evidence
         # card in the chat name the same source the same way.
         name = ui.SOURCE_META.get(r.get("source", ""), ("", ""))[0]
+        # A whole card being clickable is invisible; this says where it goes. Play links
+        # carry the reviewId and open on that review itself — Apple's feed exposes no
+        # per-review permalink, so its link opens the app's reviews list instead, and the
+        # wording differs so it doesn't promise a deep link it cannot deliver.
+        target = "Open review" if r.get("source") == "play" else "Open in App Store"
         cards.append(
             f'<a class="lf-card" href="{ui.esc(r["url"])}" target="_blank" rel="noopener">'
             f'<div class="lf-card-head"><span class="lf-stars">{stars}</span>'
             f'<span class="lf-date">{ui.esc(name)} · {ui.esc(date)}</span></div>'
-            f'<div class="lf-card-text">{ui.esc(text)}</div></a>'
+            f'<div class="lf-card-text">{ui.esc(text)}</div>'
+            f'<div class="lf-card-link">{ui.esc(target)} ↗</div></a>'
         )
     return f'<div class="lf-feed">{"".join(cards)}</div>'
 
 
 def _result_html(state) -> str:
-    """The settled panel: the done chip, the reviews, and the step trace folded away
-    underneath.
+    """The settled panel: the done chip and the reviews. Nothing else.
 
-    The trace is kept rather than dropped — the whole fetch takes under two seconds, so a
-    log that only existed during the run would be a flash — but it is the record of a
-    finished job, not the point of the panel, so it collapses into a one-line disclosure
-    and the reviews get the space.
+    The step trace exists only while the fetch is running — that is the live scrape, and
+    once it has finished it is a record of a job nobody needs to audit from a sidebar.
+    How the sampling works is documented in the README, not repeated at the reader on
+    every run.
     """
-    log = (f'<details class="lf-details"><summary>What it did</summary>'
-           f'{_steps_html(state.get("steps", []), running=False)}'
-           f'<div class="lf-scanned">{state["scanned"]} reviews checked</div></details>')
     if state.get("error"):
-        return f'<div class="lf-chip err">Couldn\'t fetch · {ui.esc(state["error"])}</div>' + log
+        return f'<div class="lf-chip err">Couldn\'t fetch · {ui.esc(state["error"])}</div>'
     n = len(state["new"])
     label = f"{n} new review{'' if n == 1 else 's'}" if n else "no new reviews"
     chip = (f'<div class="lf-chip">Done · {label}'
             f'<span class="lf-chip-sub">{ui.esc(state["at"])}</span></div>')
     if not n:
-        return chip + log
+        return chip
     note = '<div class="lf-note">One review per rating · just a preview, nothing saved</div>'
-    return chip + note + _cards_html(state["new"]) + log
+    return chip + note + _cards_html(state["new"])
 
 
 def render_panel():
@@ -302,3 +320,23 @@ def render_panel():
     state = st.session_state.get("live_fetch")
     if state:
         st.markdown(_result_html(state), unsafe_allow_html=True)
+
+
+def main():
+    """`python -m app.live_fetch` — the same fetch, printed instead of rendered.
+
+    This is where the step-by-step detail lives now that the sidebar drops it: run it
+    locally or from the Preview newest reviews workflow and the whole trace, plus a link
+    per review, lands in the log. Reads nothing but data/raw and writes nothing at all,
+    so it is safe to run anywhere.
+    """
+    steps = []
+    state = _fetch(lambda t: (steps.append(t), print(f"  {t}"))[0], lambda b: None)
+    print(f"\n{len(state['new'])} new of {state['scanned']} reviews checked\n")
+    for r in state["new"]:
+        print(f"{r['rating']}★  {r['source']:8}  {r['date'][:10]}  {r['text'][:90]}")
+        print(f"    {r['url']}")
+
+
+if __name__ == "__main__":
+    main()

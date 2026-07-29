@@ -179,17 +179,14 @@ def inject_theme():
             scrollbar-width: thin; scrollbar-color: {SIDEBAR_BORDER} transparent;
         }}
 
-        /* The step trace, folded away once the run is over. */
-        [data-testid="stSidebar"] .lf-details {{ margin-top: 4px; }}
-        [data-testid="stSidebar"] .lf-details summary {{
-            cursor: pointer; list-style: none;
-            font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em;
-            text-transform: uppercase; color: #6f6440 !important; padding: 3px 0;
+        /* "Open review ↗" — a whole clickable card is invisible without it. */
+        [data-testid="stSidebar"] .lf-card-link {{
+            font-size: 10px; font-weight: 700; letter-spacing: 0.03em;
+            color: #8a6d1f !important; margin-top: 6px;
         }}
-        [data-testid="stSidebar"] .lf-details summary::-webkit-details-marker {{ display: none; }}
-        [data-testid="stSidebar"] .lf-details summary::before {{ content: "› "; }}
-        [data-testid="stSidebar"] .lf-details[open] summary::before {{ content: "⌄ "; }}
-        [data-testid="stSidebar"] .lf-scanned {{ font-size: 10.5px; color: #6f6440 !important; }}
+        [data-testid="stSidebar"] .lf-card:hover .lf-card-link {{ color: {ON_PRIMARY} !important; }}
+
+        /* The step trace, shown only while a fetch is running. */
         [data-testid="stSidebar"] .lf-card {{
             display: block; text-decoration: none !important;
             background: rgba(255,255,255,0.72);
