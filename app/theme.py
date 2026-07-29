@@ -260,7 +260,21 @@ def inject_theme():
             top: 56px;
             z-index: 15;
             background: {BACKGROUND};
-            padding-bottom: 10px;
+            padding-bottom: 14px;
+        }}
+        /* Answers pass behind the banner, and a hard edge made them look like they were
+        sliding *into* the heading card. This fades the last 22px of page background out
+        below it, so text thins away before it reaches the banner instead of being sliced
+        mid-line. Not interactive — clicks go to the conversation underneath. */
+        [data-testid="stVerticalBlockBorderWrapper"]:has(> div > .st-key-cp_head)::after {{
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            height: 22px;
+            background: linear-gradient(180deg, {BACKGROUND} 0%, rgba(247, 249, 251, 0) 100%);
+            pointer-events: none;
         }}
         .st-key-cp_head {{ position: relative; }}
         .st-key-cp_clear {{
