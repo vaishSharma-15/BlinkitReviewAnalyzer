@@ -111,8 +111,12 @@ def inject_theme():
         with a key — the fetch panel's container inherited a 772px floor, which stretched
         the sidebar past the viewport and pushed the account chip out of sight. That looked
         like the review list scrolling the sidebar; it was this. */
+        /* Height budget: the block starts ~42px down (trimmed sidebar header) and
+        stSidebarUserContent adds 24px of padding below it, so 5rem of slack puts the
+        account chip about 20px off the bottom edge. 8rem was sized for the old 78px
+        header and left the chip floating 70px short of the foot. */
         [data-testid="stSidebarUserContent"] > div > [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {{
-            min-height: calc(100vh - 8rem);
+            min-height: calc(100vh - 5rem);
         }}
         /* :has() is needed because the chip is wrapped in Streamlit's own
         stElementContainer — that wrapper, not .sb-user-foot itself, is the flex child
