@@ -287,6 +287,21 @@ anyone reading the report:
 - **Scale comes from counts, not impressions.** Prevalence claims must come from the
   corpus totals (§4), so "most users" reflects 4,110 reviews rather than eight.
 
+### The live review panel is not part of the analysis
+
+The sidebar's **Fetch new reviews** button pulls Blinkit's newest Play Store and App Store
+reviews while you watch — one per star rating, so it spans praise and complaint rather
+than the five-star shorthand that dominates a newest-first pull.
+
+It is a window, not an input. Those reviews are never saved, never classified, never
+indexed and never retrievable by the chat: ask the engine about one and it will not find
+it, because the engine searches the frozen corpus described above. Nothing in this
+document — no theme size, no sentiment score, no percentage — moves when you press it.
+
+It exists because a snapshot invites one fair question: *is any of this still true?* The
+panel lets you check today's reviews against the themes without pretending they have been
+through the pipeline. To actually fold them in, you re-run it (§Re-running everything).
+
 ### Reading the answers
 
 The last check is done by a person, because some things only a reader can catch. We ask

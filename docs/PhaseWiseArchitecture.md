@@ -199,6 +199,10 @@ Key concerns:
 - The app must answer only from retrieved evidence, not from model priors.
 - The landing view should show the scorecard first.
 - The deployed application should use a frozen corpus and display the freeze date.
+- One live side channel is permitted and bounded: the sidebar's Fetch new reviews panel
+  (`app/live_fetch.py`) calls Play and the App Store at request time to show what is
+  arriving now. It writes nothing, is never indexed and is never retrievable by the chat,
+  so the served corpus stays frozen. See `docs/EdgeCases.md` §8 and §9.
 
 ## 4. Repository structure alignment
 
@@ -211,7 +215,10 @@ The architecture maps directly to the repository layout:
 - data/themes/ for synthesized themes
 - data/gold/ for the human-labelled validation set
 - reports/ for the scorecard
-- app/ for the public query experience
+- app/ for the public query experience, including app/live_fetch.py for the read-only
+  live review panel
+- .github/workflows/ for the scheduled jobs that keep the deployment reachable
+  (keep-awake.yml) and print a live fetch to the run log (preview-reviews.yml)
 
 ## 5. Design principles
 

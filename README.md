@@ -257,9 +257,23 @@ streamlit run app/rag_chatbot.py
 
 ### Notes
 
-- The chatbot uses the markdown files in the docs folder as its knowledge base.
-- If an Anthropic API key is present in the environment, the app can generate answers grounded in retrieved context.
-- Without an API key, it falls back to a simple retrieval-based response.
+- Answers are retrieved from the LanceDB index over `data/enriched/enriched.jsonl` — the
+  classified reviews, not the markdown in `docs/`.
+- With `GEMINI_API_KEY` set, Gemini writes the answer from the retrieved evidence.
+- Without a key (or past the daily quota) it falls back to an extractive summary built
+  from the enrichment labels on those same reviews. See *Answer reliability* below.
+
+### Clearing the conversation
+
+**Clear chat** sits in the top-right corner of the Insight Engine's heading, which is
+sticky — the banner stays on screen for the whole conversation, so the button is reachable
+at any scroll depth without floating over the answers. It is always present and disabled
+until there is something to clear, rather than appearing mid-conversation and shifting the
+layout under the reader.
+
+It drops `copilot_messages` and `copilot_pending` from session state, nothing else: the
+LLM disk cache is untouched, so re-asking a cleared question costs no quota. Below 1180px
+the button leaves the banner corner and takes its own line under the heading.
 
 ### Fetching new reviews live
 
@@ -294,10 +308,15 @@ Reading App Store reviews
 App Store — 3 new                    ← lowest-rated, highest-rated, then newest
 ```
 
-Those steps stream into the sidebar while the fetch runs and are gone once it finishes —
-the panel then shows only the Done chip and the reviews, since a finished job's trace is
-not something to audit from a sidebar. This section is the record instead, and so is the
-CLI, which prints the whole trace plus a link per review:
+Those steps stream into the sidebar while the fetch runs and are gone once it finishes.
+The settled panel is a *Done · N new reviews* chip and a **Read them** fold, collapsed —
+what people are saying right now is a question you ask on purpose, not something that
+should occupy a third of the sidebar unasked. The list scrolls inside its own 230px box,
+so however many reviews come back the panel keeps a fixed height and the account chip
+stays on the sidebar floor.
+
+This section is the record of the trace instead, and so is the CLI, which prints the whole
+thing plus a link per review:
 
 ```bash
 python -m app.live_fetch
@@ -318,8 +337,18 @@ so App Store cards open the app's reviews list (`?see-all=reviews`) and are labe
 It is read-only: nothing is written to `data/raw/`. The corpus counts, the funnel
 manifests and the vector index all come from one pipeline run and have to agree with each
 other, so a review injected behind their backs would be counted as scraped while being
-absent from every downstream stage. That is why the fetched reviews are labelled *not yet
-indexed* — to actually add them, re-run the pipeline from Phase 01.
+absent from every downstream stage. To actually add them, re-run the pipeline from
+Phase 01.
+
+This is the one place the app talks to a live source, and it is deliberately walled off
+from the analysis (`docs/EdgeCases.md` §8). Reviews fetched here never reach retrieval:
+ask the chat about one and it will not find it, because the chat searches the index and
+the index is built from the frozen corpus. The panel says so — *just a preview, nothing
+saved*.
+
+A failure in one store is reported as a step and does not cost you the other; if both
+fail, the panel shows `Couldn't fetch · <ErrorType>` rather than an empty result that
+would read as "no new reviews".
 
 ### Answer reliability on a deployed instance
 
