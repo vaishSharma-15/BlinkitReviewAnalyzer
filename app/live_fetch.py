@@ -265,7 +265,7 @@ def _result_html(state) -> str:
             f'<span class="lf-chip-sub">{ui.esc(state["at"])}</span></div>')
     if not n:
         return chip + log
-    note = '<div class="lf-note">One per star rating · not saved to the corpus</div>'
+    note = '<div class="lf-note">One review per rating · just a preview, nothing saved</div>'
     return chip + note + _cards_html(state["new"]) + log
 
 
