@@ -83,7 +83,8 @@ with st.sidebar:
     with st.container(key="sb_fetch"):
         if st.button("Fetch new reviews", icon=":material/cloud_download:",
                      use_container_width=True, key="fetch_reviews",
-                     help="Pull the newest Blinkit Play Store reviews live."):
+                     help="Pull Blinkit's newest Play Store and App Store reviews live, "
+                          "one per star rating."):
             st.session_state.live_fetch_run = True
             st.session_state.pop("live_fetch", None)
             st.rerun()

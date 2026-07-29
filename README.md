@@ -263,11 +263,24 @@ streamlit run app/rag_chatbot.py
 
 ### Fetching new reviews live
 
-The sidebar's **Fetch new reviews** button (`app/live_fetch.py`) pulls the newest Blinkit
-Play Store reviews on demand, using the same app id and locale from `config.yaml` that
-`src.ingest.play_store` uses. It streams the scrape as it runs — one step per page — and
-then pastes the reviews it found into the sidebar under a *Done · N new reviews* chip,
-where "new" means an id not already in `data/raw/play.jsonl`.
+The sidebar's **Fetch new reviews** button (`app/live_fetch.py`) pulls Blinkit's newest
+store reviews on demand from both app stores, using the same app ids and storefront from
+`config.yaml` that `src.ingest.play_store` and `src.ingest.app_store` use. It streams the
+scrape as it runs — one step per request — and then pastes what it found into the sidebar
+under a *Done · N new reviews* chip, where "new" means an id not already in
+`data/raw/play.jsonl` or `data/raw/appstore.jsonl`.
+
+Those two are the live sources because they are the only ones that answer instantly
+without a key: YouTube needs an API key and quota, and the forum/Reddit sources are
+blocked or rate-limited (see `blocked_reason` in the raw manifests) — fine for a nightly
+CLI run, not for a button someone is waiting on.
+
+It samples one review per star rating rather than taking the newest N. The newest 100 Play
+reviews run about 63% five-star and 78% four-or-five, with a median length of 11
+characters, so a pure "newest" pull is a wall of *good* / *best* / *nice app*. One request
+per rating bucket (`filter_score_with` on Play; Apple's feed has no such filter, so its
+page is bucketed client-side) costs about a second in total and returns something readable
+at both ends of the scale.
 
 It is read-only: nothing is written to `data/raw/`. The corpus counts, the funnel
 manifests and the vector index all come from one pipeline run and have to agree with each
