@@ -236,39 +236,26 @@ def inject_theme():
         pointer-events are off for the row and back on for the button — the row spans the
         full width, and as a solid strip floating over the answers it would have
         swallowed every click and text selection behind it. */
-        /* Parked in the page's right margin, clear of the answer column.
-        Sticky inside the column put it half over the card's right edge — the column ends
-        at the page padding but the answer card stops short of it, so "right-aligned to
-        the column" and "outside the card" are not the same place. Fixed to the viewport
-        is, and it also means the button no longer travels at all.
-        Its row is emptied of layout so the conversation starts where it used to. */
-        [data-testid="stHorizontalBlock"]:has(.st-key-cp_clear) {{
-            height: 0;
-            overflow: visible;
-            pointer-events: none;
-        }}
+        /* Clear chat lives in the heading banner's top-right corner — the slot the corpus
+        pill uses when there is no conversation. Absolute inside the heading block, so it
+        is part of the banner rather than an overlay floating over the answers: every
+        version that hovered above the conversation covered the text it hovered over.
+        The trade: it scrolls with the heading, so a long thread means scrolling up to
+        reach it. That is the arrangement the page was asked for, and it is what the
+        reference design does. */
+        .st-key-cp_head {{ position: relative; }}
         .st-key-cp_clear {{
-            position: fixed;
-            /* Clears Streamlit's 60px header and its ⋮ menu. */
-            top: 74px;
-            right: 26px;
-            z-index: 20;
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            /* !important because Streamlit's element containers are width:100%, which
+            leaves the box spanning the whole banner and the button sitting at its far
+            left — `right: 18px` positions the box, not the button inside it. */
+            width: max-content !important;
             margin: 0;
-            pointer-events: auto;
-            /* Without this the fixed box keeps the column's width and the button sits
-            left-aligned inside it — 60px further left than `right: 26px` implies, i.e.
-            back over the card. */
-            width: max-content;
+            z-index: 5;
         }}
-        /* max-content still resolves to the column's width here, so the button is pushed
-        to the right edge of that box explicitly. */
         .st-key-cp_clear .stButton {{ display: flex; justify-content: flex-end; }}
-        /* Narrow windows leave no margin to sit in, so the label goes and the icon
-        stays — 40px fits a gutter that 125px cannot. */
-        @media (max-width: 1360px) {{
-            .st-key-cp_clear button [data-testid="stMarkdownContainer"] {{ display: none; }}
-            .st-key-cp_clear button {{ padding: 8px 10px !important; }}
-        }}
         .st-key-cp_clear button {{
             background-color: {CARD_BG} !important;
             border: 1px solid {CARD_BORDER_HOVER} !important;

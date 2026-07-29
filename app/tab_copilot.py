@@ -320,24 +320,26 @@ def render():
         # the foot of the page, i.e. the tail end of the answer that just appeared.
         st.session_state.copilot_scroll_to = len(st.session_state.copilot_messages) - 1
 
+    pending = st.session_state.get("copilot_pending")
+    in_conversation = bool(st.session_state.copilot_messages) and not pending
+
     grounded = len(load_enriched_df())
     scraped = scraped_count(grounded)
-    ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
-                     f"Trained on thousands of Blinkit app-store reviews, YouTube comments and "
-                     f"q-commerce community discussions — every answer grounded in what real users said. "
-                     f"{ui.fmt_full(scraped)} reviews scraped, {ui.fmt_full(grounded)} indexed for retrieval.",
-                     pill=f"{ui.fmt_full(scraped)} scraped · {ui.fmt_full(grounded)} indexed"))
 
-    pending = st.session_state.get("copilot_pending")
+    # Heading and Clear chat share one block so the button can sit in the banner's
+    # top-right corner rather than float over the conversation below it. The corpus pill
+    # normally occupies that corner, so it stands down once there is a chat to clear —
+    # the counts it carries are in the banner's own copy anyway.
+    with st.container(key="cp_head"):
+        ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
+                         f"Trained on thousands of Blinkit app-store reviews, YouTube comments and "
+                         f"q-commerce community discussions — every answer grounded in what real users said. "
+                         f"{ui.fmt_full(scraped)} reviews scraped, {ui.fmt_full(grounded)} indexed for retrieval.",
+                         pill=None if in_conversation
+                         else f"{ui.fmt_full(scraped)} scraped · {ui.fmt_full(grounded)} indexed"))
 
-    # Clearing the conversation belongs beside the conversation, not in the sidebar: it
-    # acts on what is on this page, and only exists once there is something to clear.
-    if st.session_state.copilot_messages and not pending:
-        with st.columns([4, 1])[1]:
+        if in_conversation:
             with st.container(key="cp_clear"):
-                # Sized to its label, not to the column: pinned over the conversation it
-                # is an overlay, and a full-width one would cover the right-hand end of
-                # every line it floats past.
                 if st.button("Clear chat", icon=":material/refresh:", key="clear_chat"):
                     st.session_state.pop("copilot_messages", None)
                     st.session_state.pop("copilot_pending", None)
