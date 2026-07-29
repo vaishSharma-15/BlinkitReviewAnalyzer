@@ -36,7 +36,10 @@ def _logo_data_uri() -> str:
     return f"data:image/svg+xml;base64,{b64}"
 
 
-st.set_page_config(page_title="Blinkit Analyst", page_icon=str(FAVICON_PATH), layout="wide")
+# The cart is load-bearing, not decoration: Safari drops a leading word that repeats the
+# site name, and the deployed URL contains "blinkit" — so a plain "Blinkit Analyst" showed
+# up in the tab strip as "Analyst". A glyph in front breaks that match.
+st.set_page_config(page_title="🛒 Blinkit Analyst", page_icon=str(FAVICON_PATH), layout="wide")
 inject_theme()
 inject_ui()
 
