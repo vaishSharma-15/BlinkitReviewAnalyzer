@@ -32,7 +32,7 @@ def _logo_data_uri() -> str:
     return f"data:image/svg+xml;base64,{b64}"
 
 
-st.set_page_config(page_title="Blinkt Analyst", page_icon=str(LOGO_PATH), layout="wide")
+st.set_page_config(page_title="Blinkit Analyst", page_icon=str(LOGO_PATH), layout="wide")
 inject_theme()
 inject_ui()
 
