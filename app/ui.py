@@ -364,6 +364,18 @@ details.ui-quotes summary::-webkit-details-marker {{ display:none; }}
    card's 20px padding — 36px above the label against 8px below it, so the label read
    as detached from the text it introduces. The card's padding is enough on its own. */
 .ui-card > .ui-secline:first-child {{ margin-top:0; }}
+/* Standing note under the chat input, written into the bottom strip Streamlit pins to
+   the page — the strip already spans the chat column and reserves 55px below the box, so
+   the line lands centred under it at every width and needs no geometry of its own. A
+   free-standing element could not: fixed to the viewport it centres on the window, which
+   is 168px left of the chat column, and left in the flow it scrolls away with the
+   conversation. The strip only exists on the page that has a chat input. */
+[data-testid="stBottomBlockContainer"]::after {{
+  content: "Every answer is grounded in real customer reviews using retrieval-augmented generation (RAG).";
+  display: block; text-align: center; color: {FAINT}; font-size: 11px; line-height: 1.4;
+  margin: 9px 0 0; padding: 0 12px;
+}}
+
 /* --- Narrow windows ------------------------------------------------------
    The grids above reflow on their own (auto-fit + minmax). What does not is
    anything with a fixed column: the stat tile's label-then-value row, the
