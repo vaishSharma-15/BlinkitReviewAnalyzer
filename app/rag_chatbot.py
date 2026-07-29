@@ -82,7 +82,12 @@ def _claim_favicon():
               const link = d.createElement('link');
               link.rel = rel;
               link.type = 'image/png';
-              link.href = href;
+              // Cache-buster: Safari keeps a favicon database keyed by URL and will not
+              // refetch one it already has, so a browser that saw Streamlit's icon for
+              // this page keeps showing it. A URL it has never seen is a new lookup.
+              // Streamlit's media handler ignores the parameter (verified: same 6,176
+              // bytes, same content-type, with and without it).
+              link.href = href + (href.indexOf('?') === -1 ? '?' : '&') + 'v=blinkit1';
               d.head.appendChild(link);
             });
           }
