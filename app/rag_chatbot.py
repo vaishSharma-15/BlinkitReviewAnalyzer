@@ -19,6 +19,10 @@ from app.theme import inject_theme  # noqa: E402
 from app.ui import inject_ui  # noqa: E402
 
 LOGO_PATH = ROOT / "app" / "assets" / "blinkit-logo.svg"
+# Same mark, rasterised (see app/assets/README.md). The favicon has to be the PNG:
+# Streamlit hands page_icon straight to the browser as the tab icon, and an SVG passed
+# there is ignored — which is why the tab showed Streamlit's own logo instead.
+FAVICON_PATH = ROOT / "app" / "assets" / "blinkit-logo.png"
 
 
 @st.cache_data
@@ -32,7 +36,7 @@ def _logo_data_uri() -> str:
     return f"data:image/svg+xml;base64,{b64}"
 
 
-st.set_page_config(page_title="Blinkit Analyst", page_icon=str(LOGO_PATH), layout="wide")
+st.set_page_config(page_title="Blinkit Analyst", page_icon=str(FAVICON_PATH), layout="wide")
 inject_theme()
 inject_ui()
 
