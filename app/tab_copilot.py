@@ -184,7 +184,7 @@ def _render_message(msg, midx: int = 0):
             url = e.get("url", "")
             cite = (f'<a class="ui-cite" href="{ui.esc(url)}" target="_blank" rel="noopener">'
                     f'{ui.icon("link", size=12, color=ui.YELLOW_DK)}view source</a>') if url else ""
-            body.append(f'<div id="ev-{midx}-{i}" style="border-left:2px solid {color};padding:2px 0 2px 12px;margin:10px 0;scroll-margin-top:80px;">'
+            body.append(f'<div id="ev-{midx}-{i}" style="border-left:2px solid {color};padding:2px 0 2px 12px;margin:10px 0;scroll-margin-top:215px;">'
                         f'<div style="display:flex;gap:10px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">'
                         f'<span class="ui-citenum">[{i}]</span>'
                         f'<span class="ui-badge" style="color:{color};border-color:{color}55;background:{color}12;">{name}</span>'
@@ -257,10 +257,17 @@ def _scroll_to(idx: int):
             const cont = doc.querySelector('[data-testid="stAppScrollToBottomContainer"]');
             if (el) {{
                 if (cont) {{
-                    // 76px clears Streamlit's 60px fixed header, which overlays the
-                    // scroll container and would otherwise cut off the question bubble.
+                    // Land clear of everything pinned above the conversation: Streamlit's
+                    // 60px header and the sticky page banner under it. Measured rather
+                    // than hardcoded — the banner's height depends on how many lines its
+                    // sub text wraps to, and a stale constant is what left the first
+                    // answer starting underneath it.
+                    const head = doc.querySelector('.st-key-cp_head');
+                    const gap = head
+                        ? head.getBoundingClientRect().bottom - cont.getBoundingClientRect().top + 14
+                        : 76;
                     const top = el.getBoundingClientRect().top
-                              - cont.getBoundingClientRect().top + cont.scrollTop - 76;
+                              - cont.getBoundingClientRect().top + cont.scrollTop - gap;
                     if (Math.abs(cont.scrollTop - top) > 2) cont.scrollTo({{top: top, behavior: "auto"}});
                 }} else {{
                     el.scrollIntoView({{behavior: "auto", block: "start"}});
