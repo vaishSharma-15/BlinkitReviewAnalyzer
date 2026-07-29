@@ -243,6 +243,25 @@ def inject_theme():
         The trade: it scrolls with the heading, so a long thread means scrolling up to
         reach it. That is the arrangement the page was asked for, and it is what the
         reference design does. */
+        /* The heading stays on screen for the whole conversation, and takes Clear chat
+        with it. Sticky rather than fixed so it keeps its place in the column and needs no
+        width guessing; `top` clears Streamlit's 60px header, which overlays the top of
+        the scroll container — at 0 the banner parked underneath it.
+
+        The background is opaque and the padding is negative-margined out to the block's
+        full width, so answers scrolling underneath pass behind the banner rather than
+        showing through the gaps around its rounded corners. */
+        /* Sticky goes on the border wrapper, not on the keyed container: the container's
+        immediate parent is exactly its own height, and a sticky element can only travel
+        inside its parent. The wrapper is the direct child of the page's tall block, so it
+        has the whole conversation to travel. (Same trap the button hit twice.) */
+        [data-testid="stVerticalBlockBorderWrapper"]:has(> div > .st-key-cp_head) {{
+            position: sticky;
+            top: 56px;
+            z-index: 15;
+            background: {BACKGROUND};
+            padding-bottom: 10px;
+        }}
         .st-key-cp_head {{ position: relative; }}
         .st-key-cp_clear {{
             position: absolute;

@@ -327,9 +327,10 @@ def render():
     scraped = scraped_count(grounded)
 
     # Heading and Clear chat share one block so the button can sit in the banner's
-    # top-right corner rather than float over the conversation below it. The banner is the
-    # compact variant here: it is a label on a page whose real content is the chat, and a
-    # full-height one pushed the first answer down the screen.
+    # top-right corner rather than float over the conversation below it. The block is
+    # sticky (see theme.py): the banner stays on screen for the whole conversation, which
+    # takes the button with it — every earlier attempt to keep the button visible on its
+    # own ended up hovering over the answers.
     #
     # The button is always drawn, disabled until there is something to clear. Appearing
     # only mid-conversation made it a control that moved in and shifted the layout under
@@ -338,8 +339,7 @@ def render():
         ui.flush(ui.hero("message", "Blinkit · Voice of Customer", "Blinkit Insight Engine",
                          f"Trained on thousands of Blinkit app-store reviews, YouTube comments and "
                          f"q-commerce community discussions — every answer grounded in what real users said. "
-                         f"{ui.fmt_full(scraped)} reviews scraped, {ui.fmt_full(grounded)} indexed for retrieval.",
-                         compact=True))
+                         f"{ui.fmt_full(scraped)} reviews scraped, {ui.fmt_full(grounded)} indexed for retrieval."))
 
         with st.container(key="cp_clear"):
             if st.button("Clear chat", icon=":material/refresh:", key="clear_chat",
