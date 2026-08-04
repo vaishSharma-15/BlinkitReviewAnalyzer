@@ -1,0 +1,384 @@
+# Pipeline reference
+
+Phase-by-phase engineering log for the Blinkit Review Discovery Engine — every design
+decision, quota constraint, and tradeoff behind each stage. Start at [README.md](../README.md)
+for the project overview and quickstart; come here for the detail behind each phase.
+
+## Phase 01 — Ingest
+
+Collects public Blinkit-related feedback into `data/raw/<source>.jsonl`, one file per
+source type, per `docs/PhaseWiseArchitecture.md`.
+
+### Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # fill in REDDIT_*, YOUTUBE_API_KEY as available
+```
+
+### Run a stage (always smoke-test with --limit first)
+
+```bash
+python -m src.ingest.play_store --config config.yaml --limit 50
+python -m src.ingest.app_store --config config.yaml --limit 50
+python -m src.ingest.reddit --config config.yaml --limit 50
+python -m src.ingest.youtube --config config.yaml --limit 50
+python -m src.ingest.forums --config config.yaml --limit 50
+python -m src.ingest.product_reviews --config config.yaml --limit 50
+python -m src.ingest.qcomm_discussions --config config.yaml --limit 50
+```
+
+Each script is idempotent and resumable: it appends only new ids to its output file
+and writes a `data/raw/<source>.manifest.json` run manifest with fetch/write counts.
+
+### Source coverage notes
+
+- `app_store`: Blinkit's iOS numeric app id (960335206) was found via the public
+  `itunes.apple.com/search` lookup and is set in `config.yaml`. The `app-store-scraper`
+  package turned out to be unmaintained (its endpoint returns non-JSON responses), so
+  this source instead calls Apple's public customer-reviews RSS/JSON feed directly.
+  That feed hard-caps at 10 pages (~500 most-recent reviews) — that is the full volume
+  available from this endpoint, not a partial run.
+- `youtube`: no `YOUTUBE_API_KEY` was available. With the user's explicit approval,
+  this source uses `yt-dlp` (video search) and `youtube-comment-downloader` (comment
+  scraping) instead of the official Data API v3. This is a deliberate substitution
+  from the tech stack decided in `docs/ProblemStatement.md` §5 — both tools hit
+  YouTube's public pages directly rather than a stable API, so they're more fragile to
+  markup/behaviour changes than the official API would be.
+- `reddit` / `qcomm_comparison`: **blocked, not substitutable.** `reddit.com/robots.txt`
+  is a blanket `Disallow: /` for every user agent, and the public `.../search.json`
+  endpoints return a 403 anti-bot challenge even without the robots restriction. Reddit
+  content can only be collected through the official OAuth API (`praw` +
+  `REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET`), which requires user-supplied credentials
+  not available in this environment.
+- `forums`: Quora's `robots.txt` disallows scraping outright. MouthShut's `robots.txt`
+  allows generic bots but has an explicit `Disallow: /` for `ClaudeBot` — since this
+  pipeline is operated by a Claude agent, that directive is honored rather than routed
+  around with a different user-agent string. Both forum sources are therefore blocked
+  by design, not by scraper failure. Two substitute Indian consumer-forum candidates
+  were checked and also ruled out: `consumercomplaints.in` sits behind a Cloudflare
+  bot-challenge before robots.txt is even reached; `voxya.com` has a fully permissive
+  `robots.txt` but is a JS-rendered SPA with no discoverable Blinkit-specific content
+  endpoint. This source remains at 0 records, documented rather than worked around.
+- `product_reviews`: Blinkit PDP reviews are not scrapable without an authenticated
+  session, so this source falls back to Amazon India / Nykaa reviews for equivalent
+  SKUs and labels those records `meta.vendor` + `meta.is_proxy_source: true` honestly.
+  The Amazon fallback currently hits a search-results page rather than a product's
+  review tab, so extracted text may be listing/navigation copy rather than genuine
+  review text — records are tagged `meta.unverified_extraction: true` and need
+  spot-checking (or selector refinement against a real review page) before being
+  trusted in a full run.
+- No PII is stored: ingest strips username-shaped fields at the point of collection.
+
+## Phase 02 — Normalize
+
+`python -m src.normalize --config config.yaml` unifies all `data/raw/*.jsonl` into
+`data/normalized/normalized.jsonl`: drops items under 15 chars, filters spam, dedups
+exact + near-duplicates (embedding cosine > 0.95, blocked by source+day), and detects
+language (en/hi/hinglish/other) via a deterministic keyword/script heuristic in
+`src/lang_detect.py` (no ML model — auditable and reproducible). Funnel counts are
+logged to `data/normalized/manifest.json`.
+
+## Phase 03 — Relevance gate
+
+`python -m src.relevance --config config.yaml` classifies each normalized record as
+relevant/not to the research theme (shopping habits, category choice, product
+discovery, assortment, category trial) using the Gemini LLM, prompt versioned at
+`prompts/relevance_batch.md`.
+
+**LLM provider note:** the project spec (`docs/ProblemStatement.md` §5) decided
+Anthropic/Claude, but the user didn't have an Anthropic key and asked to use their free
+Gemini key instead — approved explicitly in conversation. Model is pinned to
+`gemini-3.5-flash-lite` (not a `-latest` alias, for reproducibility); the full
+`gemini-3.5-flash` intermittently leaked chain-of-thought text into JSON output even
+with `responseMimeType=application/json`, so the lite variant was chosen for reliable
+strict-JSON output.
+
+**Free-tier quota, measured empirically, not assumed:** 15 requests/minute, and
+separately a **500 requests/day** cap (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`)
+that does NOT recover within the `retryDelay` the API suggests (confirmed by a sustained
+4-minute test that got only 1 success after the cap was hit) — it's a real once-a-day
+reset, not a short burst limiter. `src/llm.py` enforces a 13/min safety margin and
+raises `DailyQuotaExhausted` distinctly from ordinary 429s so callers stop cleanly
+instead of retrying for hours; the disk cache (`sha256(prompt_version + text)`) means
+re-running the same command after reset resumes at no extra cost for completed work.
+
+**Batching, to fit the full corpus in one day's quota:** at 1 item per LLM call, the
+~10,030 items that survive pre-filtering would need ~65 days at 500 requests/day.
+Instead, `src/relevance.py` and `src/enrich.py` batch multiple items into a single
+call (numbered list in, JSON array out, matched by index) — default 25/call for
+relevance, 15/call for enrich — cutting total requests to a few hundred, comfortably
+inside the daily cap. A batch that fails to parse or validate is retried once, then
+recursively split in half; only individual items still failing at the smallest split
+are quarantined, so one malformed response can't silently drop a whole batch.
+
+**Keyword pre-filter, to conserve quota further:** `src/relevance.py` applies a cheap
+keyword pre-filter (`THEME_KEYWORDS` — category names, product exemplars,
+discovery/habit/barrier language, authenticity/defect language) to English text only,
+and sends 100% of Hindi/Hinglish/other-language text to the LLM unfiltered. This split
+exists because the keyword list is Latin-script and under-matches Devanagari almost
+completely (measured: Hindi survived at 6.2% vs English at 31.1% before the split — not
+a real signal difference, a blind spot). The English keyword list itself was
+iteratively spot-checked against random samples of filtered-out items and expanded to
+close real misses (e.g. "fake ghee", "hair fall serum" were initially dropped since no
+generic category word matched). No keyword list has perfect recall — items
+pre-filtered out are logged in `data/relevant/all_classifications.jsonl` with
+`reason: "prefiltered..."` so the tradeoff stays auditable, not hidden.
+
+## Phase 04 — Enrich
+
+`python -m src.enrich --config config.yaml` adds closed-vocabulary structured labels
+(categories, behaviour signal, barrier type, segment signals, sentiment, quote-worthy)
+**and a primary theme assignment (`theme_id`)** to each relevant record, per
+`prompts/enrich_batch.md`. Every LLM response is validated against the closed
+vocabularies in `src/schemas.py`; violations are retried once with a repair
+instruction, then quarantined to `data/enriched/failed.jsonl`.
+
+**Theme classification is supervised, not clustered.** Each record gets exactly one
+`theme_id` from a fixed 9-theme taxonomy (`platform_mental_model`,
+`category_specific_distrust`, `first_trial_story`, `habit_and_reorder`,
+`discovery_mechanics`, `assortment_gaps`, `price_and_value`, `life_event_trigger`,
+`cross_platform_comparison`), or `unclassified` if none fit — assigned in the same LLM
+call as the other labels, at no extra quota cost. This taxonomy was hand-designed
+against the eight research questions in `docs/ProblemStatement.md` §4, then adopted
+after an earlier fully-unsupervised approach (HDBSCAN over embeddings, no fixed
+categories) was tried first and rejected: on this corpus it found only 3 clusters with
+66% of records landing in the noise bucket — too coarse to answer the research
+questions. Supervised classification against the fixed taxonomy leaves only 13.9%
+`unclassified`.
+
+## Phase 04b — Segment
+
+`python -m src.segment discover` then `python -m src.segment assign` derives the shopper
+segments **from the reviews themselves** and labels every record against them, per
+`prompts/segment_discover.md` and `prompts/segment_assign.md`.
+
+**Why this exists alongside Phase 04's `segment_signals`.** Those four fields
+(`family_stage`, `city_tier`, `price_sensitivity`, `has_pet`) are demographic slots, and
+a public app-store review almost never states a demographic. The enrich prompt is right
+to answer `unknown` rather than guess — which is why three of the four are `unknown` for
+98–99% of the corpus. The labels are honest and nearly empty. This phase segments on
+what reviews *do* state: how people shop, what they refuse to buy, what they compare
+against.
+
+**Discover** sends a stratified sample (spread across sources and sentiment bands, since
+a plain sample of this corpus is ~89% Play Store and ~60% negative) and asks for 4–7
+segments defined by stated behaviour, each carrying verbatim example quotes. Segments
+are explicitly forbidden from being defined by age, gender, income, occupation, city or
+family — a review does not report those, so such a segment would be invention. The
+result is frozen to `data/segments/taxonomy.json` so later runs classify against a
+stable list.
+
+**Assign** classifies every record against that frozen taxonomy, and each assignment
+must carry an `evidence_quote` copied verbatim from the review.
+
+**The no-guesswork rule is enforced in code, not requested in the prompt.** Every quote
+is checked against its review's own text (`src/segment.py:quote_supported`, forgiving
+about unicode-quote and whitespace reformatting, unforgiving about everything else). A
+quote that isn't there means the label is discarded and the record recorded as
+`unassigned` — so a guess costs the model the label instead of reaching the dashboard. An
+`off_taxonomy` id is dropped the same way. `data/segments/manifest.json` reports both
+rejection counts, so the cost of the rule is a number you can read rather than a claim.
+
+**Result.** 1,945 of 4,110 reviews (47.3%) carry a segment; 19 labels were rejected for an
+unverifiable quote. Against a 60% corpus negative rate:
+
+| Segment | n | Negative | vs corpus |
+|---|---|---|---|
+| High Value Electronics Gambler | 265 | 95% | +35pp |
+| Perishable Quality Skeptic | 968 | 86% | +26pp |
+| Discount Driven Hopper | 159 | 57% | −3pp |
+| Emergency Top Up Only | 230 | 10% | −50pp |
+| Convenience Addicted Loyalist | 323 | 5% | −55pp |
+
+The point of the change is separation, not just coverage. The largest demographic group,
+Price-Sensitive (n=667), sits at 60% negative — the corpus average exactly, distinguishing
+nobody. What spread the old dimensions did show came from groups too small to trust
+(Singles n=25, Metro n=17) or from a near-tautology (Price-Insensitive at 7% is largely
+"people with nothing to complain about"). The behaviour segments separate on real volume:
+the two angriest are 265 and 968 reviews at 26–35pp above average, which points at cold
+chain and at returns on non-grocery items.
+
+Segments are stances, not identities — one shopper can write one review as a Perishable
+Quality Skeptic and another as an Emergency Top Up user — so the sizes describe a
+relationship to the service and cannot be summed into a customer base.
+
+## Phase 05 — Cluster (secondary check only)
+
+`python -m src.cluster --config config.yaml --input data/clustered/unclassified.jsonl`
+runs the original embedding + PCA + HDBSCAN pipeline, but now **only on the
+`unclassified` subset** left over from Phase 04, as a check for a theme the fixed
+taxonomy is missing — not as the primary theming mechanism. A cluster emerging here
+that's large and coherent is a signal to add a 10th theme to `src/schemas.py` THEMES +
+`prompts/enrich_batch.md`, not a theme in its own right. On the current corpus, the
+unclassified subset itself clusters into groups that match the spec's own definition of
+noise (generic refund complaints with no product named, generic delivery-speed praise) —
+so no taxonomy change was needed.
+
+## Phase 06 — Synthesize
+
+`python -m src.synthesize --config config.yaml` groups Phase 04's enriched records by
+`theme_id` (no clustering, no LLM call — purely a group-by over labels already
+assigned), maps each theme to the research questions it answers via a fixed
+theme→question table, and ranks themes by `prevalence × severity × strategic_relevance`.
+Writes `data/themes/themes.jsonl` and `data/themes/research_questions.json` (which of
+Q1–Q8 are answered, and by which themes).
+
+## Phase 07 — Validate (the insight quality scorecard)
+
+`python -m src.validate --config config.yaml` reads every stage's output and writes
+`reports/scorecard.md`: gold-set classifier accuracy, inter-run stability, cross-source
+triangulation, a citation audit, counter-evidence search per theme, an older-vs-newer
+recency split, the ingest funnel, and per-theme source-bias flags.
+
+**Gold set is intentionally not automated.** `python -m src.gold_label` is a resumable
+CLI that samples 100 items (seeded, cached to `data/gold/sample.jsonl`) and asks a human
+to judge relevance + barrier_type for each, saving to `data/gold/labels.jsonl`. Grading
+an LLM classifier against labels the same LLM produced would be circular, so this step
+requires the user's own judgment — `src.validate` reports gold-set metrics as
+`"status": "pending"` until it's been done, never a fabricated placeholder number.
+
+**Inter-run stability** re-runs theme classification on a fresh sample (bypassing the
+disk cache, so it's a genuine independent second LLM pass) and reports theme_id
+agreement with the original run — the spec's original wording ("re-cluster a 90%
+bootstrap sample") assumed unsupervised clustering; this is the equivalent check for
+the current supervised-classification design (see Phase 04/05 above).
+
+## RAG chatbot
+
+A lightweight Streamlit-based RAG chatbot has been added under the app folder.
+
+### Run locally
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run app/rag_chatbot.py
+```
+
+### Notes
+
+- Answers are retrieved from the LanceDB index over `data/enriched/enriched.jsonl` — the
+  classified reviews, not the markdown in `docs/`.
+- With `GEMINI_API_KEY` set, Gemini writes the answer from the retrieved evidence.
+- Without a key (or past the daily quota) it falls back to an extractive summary built
+  from the enrichment labels on those same reviews. See *Answer reliability* below.
+
+### Clearing the conversation
+
+**Clear chat** sits in the top-right corner of the Insight Engine's heading, which is
+sticky — the banner stays on screen for the whole conversation, so the button is reachable
+at any scroll depth without floating over the answers. It is always present and disabled
+until there is something to clear, rather than appearing mid-conversation and shifting the
+layout under the reader.
+
+It drops `copilot_messages` and `copilot_pending` from session state, nothing else: the
+LLM disk cache is untouched, so re-asking a cleared question costs no quota. Below 1180px
+the button leaves the banner corner and takes its own line under the heading.
+
+### Fetching new reviews live
+
+The sidebar's **Fetch new reviews** button (`app/live_fetch.py`) pulls Blinkit's newest
+store reviews on demand from both app stores, using the same app ids and storefront from
+`config.yaml` that `src.ingest.play_store` and `src.ingest.app_store` use. It streams the
+scrape as it runs — one step per request — and then pastes what it found into the sidebar
+under a *Done · N new reviews* chip, where "new" means an id not already in
+`data/raw/play.jsonl` or `data/raw/appstore.jsonl`.
+
+Those two are the live sources because they are the only ones that answer instantly
+without a key: YouTube needs an API key and quota, and the forum/Reddit sources are
+blocked or rate-limited (see `blocked_reason` in the raw manifests) — fine for a nightly
+CLI run, not for a button someone is waiting on.
+
+It samples one review per star rating rather than taking the newest N. The newest 100 Play
+reviews run about 63% five-star and 78% four-or-five, with a median length of 11
+characters, so a pure "newest" pull is a wall of *good* / *best* / *nice app*. One request
+per rating bucket (`filter_score_with` on Play; Apple's feed has no such filter, so its
+page is bucketed client-side) costs about a second in total and returns something readable
+at both ends of the scale.
+
+A run does six requests and examines ~200 reviews:
+
+```
+You already have 32,725 reviews      ← data/raw/{play,appstore}.jsonl, the dedup baseline
+Reading Google Play reviews
+Play Store 1★ — 1 new                ← one request per rating bucket
+Play Store 2★ — 1 new
+…
+Reading App Store reviews
+App Store — 3 new                    ← lowest-rated, highest-rated, then newest
+```
+
+Those steps stream into the sidebar while the fetch runs and are gone once it finishes.
+The settled panel is a *Done · N new reviews* chip and a **Read them** fold, collapsed —
+what people are saying right now is a question you ask on purpose, not something that
+should occupy a third of the sidebar unasked. The list scrolls inside its own 230px box,
+so however many reviews come back the panel keeps a fixed height and the account chip
+stays on the sidebar floor.
+
+This section is the record of the trace instead, and so is the CLI, which prints the whole
+thing plus a link per review:
+
+```bash
+python -m app.live_fetch
+```
+
+`.github/workflows/preview-reviews.yml` runs exactly that — by hand from the Actions tab,
+or every Monday — so the detail is in the run log whenever you want it. It reads
+`data/raw/` to know what is already collected and writes nothing: no ingest, no index, no
+commit.
+
+Each card links back to its review. Play links carry the `reviewId` and the locale, and
+the page served for that URL contains the review's own text. Apple's feed exposes no
+per-review permalink — its entry link is an iTunes-scheme URL, and the only
+review-specific one is the reviewer's profile, which is PII this repo does not persist —
+so App Store cards open the app's reviews list (`?see-all=reviews`) and are labelled
+*Open in App Store* rather than *Open review*.
+
+It is read-only: nothing is written to `data/raw/`. The corpus counts, the funnel
+manifests and the vector index all come from one pipeline run and have to agree with each
+other, so a review injected behind their backs would be counted as scraped while being
+absent from every downstream stage. To actually add them, re-run the pipeline from
+Phase 01.
+
+This is the one place the app talks to a live source, and it is deliberately walled off
+from the analysis (`docs/EdgeCases.md` §8). Reviews fetched here never reach retrieval:
+ask the chat about one and it will not find it, because the chat searches the index and
+the index is built from the frozen corpus. The panel says so — *just a preview, nothing
+saved*.
+
+A failure in one store is reported as a step and does not cost you the other; if both
+fail, the panel shows `Couldn't fetch · <ErrorType>` rather than an empty result that
+would read as "no new reviews".
+
+### Answer reliability on a deployed instance
+
+Answers degrade in tiers rather than failing. Best case, Gemini writes the answer. If the
+call fails, the app serves an extractive summary built from the enrichment labels already
+attached to the retrieved reviews — grounded and complete, just not written prose.
+
+Between those two sits the seed cache, which exists because the tiers above it are not
+under our control. `data/cache/` holds every response the pipeline has ever received, but
+it is gitignored (9MB+, regenerable), so a *deployed* copy starts cold and every question
+becomes a live free-tier API call. `data/cache_seed/` is the small committed subset — the
+eight suggested questions, pre-answered — so the path a visitor is most likely to click
+never depends on the network, the daily quota, or the key being set at all.
+
+```bash
+python -m src.warm_cache            # fill any missing seed entries
+python -m src.warm_cache --verify   # confirm every question hits; makes no API calls
+python -m src.warm_cache --force    # re-answer everything, after a prompt change
+```
+
+The cache key is `sha256(prompt_version + user_content)`, so a seeded entry is only served
+for a byte-identical request. Editing the prompt in `build_answer_request` (or bumping
+`PROMPT_VERSION`) retires the seed silently — `--verify` is what catches that, and it is
+worth running before any deploy that touched the prompt or the index.
+
+Failures are logged rather than swallowed. A call that exhausts its retries records the
+last error and the prompt version; a fallback to the extractive path records why. Those
+lines are the only way to tell a degraded deployment from a healthy one, since both still
+answer.
